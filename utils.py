@@ -14,13 +14,17 @@ def distance_segment_point(segment, p):
         return norm(p-b)
     return norm(np.cross(a-b, a-p))/norm(b-a)
 
-def closest_edge_point(hull, p):
+def closest_edge_point(hull, ref_point):
+    '''
+    Find edge of convex hull that is closer to the reference point.
+    Returns the points of the edge and its indexes.
+    '''
     closest_i = -1
     closest_dist = np.inf
 
     for i in range(len(hull.simplices)):
         a, b = hull.points[hull.simplices[i]]
-        d = distance_segment_point((a, b), p)
+        d = distance_segment_point((a, b), ref_point)
         
         if d < closest_dist:
             closest_dist = d
@@ -31,6 +35,9 @@ def closest_edge_point(hull, p):
     return closest_edge, hull.simplices[closest_i]
 
 def find_angle(segment):
+    '''
+    Find angle to rotate component so that segment is paralel to the vertical axis
+    '''
     p1, p2 = segment
     # Use rightmost vertice as reference for angle
     if p1[0] < p2[0]:
@@ -74,17 +81,20 @@ class Transform():
         return transform_points
     
 def fix_rotation(segment, ref_point, points, direction='top'):
+    '''
+    Rotates points so that the segment is topmost of bottomost edge
+    '''
     new_points = points.copy()
 
     if direction == 'top':
         if ref_point[1] >= segment[:,1].min():
-            print('Rotate')
+            # Rotate 180 degrees
             t = Transform(sin=0, cos=-1)
             new_points = t.rotate(new_points)
 
     elif direction == 'bottom':
         if ref_point[1] <= segment[:,1].min():
-            print('Rotate')
+            # Rotate 180 degrees
             t = Transform(sin=0, cos=-1)
             new_points = t.rotate(new_points)
 
