@@ -1,13 +1,12 @@
 import numpy as np 
 
 from scipy.spatial.distance import pdist, squareform
-from scipy.spatial import ConvexHull
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.cluster.hierarchy import DisjointSet
 
 import networkx as nx
 
-from utils import closest_edge_point, find_angle, Transform, fix_rotation
+from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotation
 
 class TopoMap():
     def __init__(self, points:np.ndarray) -> None:
@@ -36,7 +35,10 @@ class TopoMap():
                          ref_point:np.ndarray, 
                          direction='top') -> np.ndarray:
         
-        hull = ConvexHull(component_points)
+        if len(component_points) == 1:
+            return component_points, [0,0]
+        
+        hull = get_hull(component_points)
 
         closest_edge, edge_i = closest_edge_point(hull, ref_point)
         
@@ -69,7 +71,7 @@ class TopoMap():
         return component_points
     
     def run(self):
-        for i in range(self.n):
+        for i in range(min(self.n, len(self.sorted_edges))):
             # Get points from the edge
             i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
             p_a, p_b = self.projections[i_a,:], self.projections[i_b,:]
@@ -82,14 +84,22 @@ class TopoMap():
             # Distance between points
             d = self.sorted_edges[i][2]['weight']
             
-            # Components the points belong to
+            # Get components the points belong to
             c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
             proj_c_a, proj_c_b = self.projections[list(c_a)], self.projections[list(c_b)]
 
+            # Rotate the first to be the topmost
             proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
             proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
 
-            proj_c_a = self.translate_component()
+            # Rotate the second to be the bottomost
+            proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
+            proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
 
             # Merge components 
             self.components.merge(i_a, i_b)
+
+            self.projections[list(c_a), :] = proj_c_a
+            self.projections[list(c_b), :] = proj_c_b
+
+        return self.projections
