@@ -1,5 +1,23 @@
 import numpy as np 
 from numpy.linalg import norm
+from scipy.spatial import ConvexHull
+
+class AuxHull():
+    def __init__(self, points, simplices):
+        self.points = points
+        self.simplices = simplices
+
+def get_hull(points:np.ndarray):
+    if len(points) == 1:
+        hull = AuxHull(points=points,
+                       simplices=np.array([[0,0]]))
+    elif len(points) == 2:
+        hull = AuxHull(points=points,
+                       simplices=np.array([[0,1], [1,0]]))
+    else:
+        hull = ConvexHull(points)
+
+    return hull
 
 def distance_segment_point(segment, p):
     a, b = segment
