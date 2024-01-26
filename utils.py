@@ -14,7 +14,8 @@ def distance_segment_point(segment, p):
         return norm(p-b)
     return norm(np.cross(a-b, a-p))/norm(b-a)
 
-def closest_edge_point(hull, ref_point):
+def closest_edge_point(hull, 
+                       ref_point:np.ndarray):
     '''
     Find edge of convex hull that is closer to the reference point.
     Returns the points of the edge and its indexes.
@@ -34,7 +35,7 @@ def closest_edge_point(hull, ref_point):
 
     return closest_edge, hull.simplices[closest_i]
 
-def find_angle(segment):
+def find_angle(segment:np.ndarray):
     '''
     Find angle to rotate component so that segment is paralel to the vertical axis
     '''
@@ -68,7 +69,7 @@ class Transform():
         trans_points = points - np.array([self.x, self.y])
         return trans_points
 
-    def rotate(self, points):
+    def rotate(self, points:np.ndarray) -> np.ndarray:
         rot_points = np.zeros(shape=(len(points),2))
         rot_points[:,0] = points[:,0] * self.cos - points[:,1] * self.sin
         rot_points[:,1] = points[:,0] * self.sin + points[:,1] * self.cos
@@ -80,7 +81,10 @@ class Transform():
         transform_points = self.rotate(transform_points)
         return transform_points
     
-def fix_rotation(segment, ref_point, points, direction='top'):
+def fix_rotation(segment:np.ndarray, 
+                 ref_point:np.ndarray, 
+                 points:np.ndarray, 
+                 direction='top') -> np.ndarray:
     '''
     Rotates points so that the segment is topmost of bottomost edge
     '''
