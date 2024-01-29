@@ -79,11 +79,6 @@ class TopoMap():
             i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
             p_a, p_b = self.projections[i_a,:], self.projections[i_b,:]
 
-            # p_b should be the rightmost point
-            if p_b[0] <= p_a[0]:
-                i_a, i_b = i_b, i_a
-                p_a, p_b = p_b, p_a
-
             # Distance between points
             d = self.sorted_edges[i][2]['weight']
             
@@ -153,11 +148,6 @@ class TopoMap():
             # Get points from the edge
             i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
             p_a, p_b = self.projections[i_a,:], self.projections[i_b,:]
-
-            # p_b should be the rightmost point
-            if p_b[0] <= p_a[0]:
-                i_a, i_b = i_b, i_a
-                p_a, p_b = p_b, p_a
 
             # Distance between points
             d = self.sorted_edges[i][2]['weight']
