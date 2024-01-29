@@ -8,6 +8,8 @@ import networkx as nx
 
 from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotation
 
+import matplotlib.pyplot as plt
+
 class TopoMap():
     def __init__(self, points:np.ndarray) -> None:
         self.points = points
@@ -59,16 +61,92 @@ class TopoMap():
                             to_point:list) -> np.ndarray:
         
         if component_points[edge_i[0], 0] <= component_points[edge_i[1], 0]:
-            t = Transform(x = to_point[0]+component_points[edge_i[1], 0], 
-                          y = to_point[1]+component_points[edge_i[1], 1])
+            t = Transform(x = to_point[0]-component_points[edge_i[0], 0], 
+                          y = to_point[1]-component_points[edge_i[0], 1])
             component_points = t.translate(component_points)
 
         else:
-            t = Transform(x = to_point[0]+component_points[edge_i[0], 0], 
-                          y = to_point[1]+component_points[edge_i[0], 1])
+            t = Transform(x = to_point[0]-component_points[edge_i[1], 0], 
+                          y = to_point[1]-component_points[edge_i[1], 1])
             component_points = t.translate(component_points)
 
         return component_points
+    
+    def run_iter(self, iter=5):
+        fig, ax = plt.subplots(1,3, figsize=(12,4))
+        for i in range(iter):
+            # Get points from the edge
+            i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
+            p_a, p_b = self.projections[i_a,:], self.projections[i_b,:]
+
+            # p_b should be the rightmost point
+            if p_b[0] <= p_a[0]:
+                i_a, i_b = i_b, i_a
+                p_a, p_b = p_b, p_a
+
+            # Distance between points
+            d = self.sorted_edges[i][2]['weight']
+            
+            # Get components the points belong to
+            c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
+            proj_c_a, proj_c_b = self.projections[list(c_a)], self.projections[list(c_b)]
+
+            if i==iter-1:
+                print(f'Number of points in A: {len(proj_c_a)}')
+                print(f'Number of points in B: {len(proj_c_b)}')
+                ax[0].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black')
+
+                ax[0].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5)
+                for xi, yi, pidi in zip(proj_c_a[:,0],proj_c_a[:,1],list(range(len(proj_c_a)))):
+                    ax[0].annotate(str(pidi), xy=(xi,yi), color='red')
+                ax[0].scatter(p_a[0], p_a[1], marker='^', c='r')
+
+                ax[0].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5)
+                for xi, yi, pidi in zip(proj_c_b[:,0],proj_c_b[:,1],list(range(len(proj_c_b)))):
+                    ax[0].annotate(str(pidi), xy=(xi,yi), color='green')
+                ax[0].scatter(p_b[0], p_b[1], marker='^', c='g')
+
+                ax[0].set_title('Proj before iteration')
+
+            # Rotate the first to be the topmost
+            proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
+            proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
+
+            if i==iter-1:
+                ax[1].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black')
+                ax[1].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5)
+                for xi, yi, pidi in zip(proj_c_a[:,0],proj_c_a[:,1],list(range(len(proj_c_a)))):
+                    ax[1].annotate(str(pidi), xy=(xi,yi), color='red')
+
+                ax[1].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5)
+                for xi, yi, pidi in zip(proj_c_b[:,0],proj_c_b[:,1],list(range(len(proj_c_b)))):
+                    ax[1].annotate(str(pidi), xy=(xi,yi), color='green')
+
+                ax[1].set_title('Proj after rotation')
+
+            # Rotate the second to be the bottomost
+            proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
+            proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
+
+            if i==iter-1:
+                ax[2].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black')
+                ax[2].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5)
+                for xi, yi, pidi in zip(proj_c_a[:,0],proj_c_a[:,1],list(range(len(proj_c_a)))):
+                    ax[2].annotate(str(pidi), xy=(xi,yi), color='red')
+
+                ax[2].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5)
+                for xi, yi, pidi in zip(proj_c_b[:,0],proj_c_b[:,1],list(range(len(proj_c_b)))):
+                    ax[2].annotate(str(pidi), xy=(xi,yi), color='green')
+
+                ax[2].set_title('Proj after translation')
+
+            # Merge components 
+            self.components.merge(i_a, i_b)
+
+            self.projections[list(c_a), :] = proj_c_a
+            self.projections[list(c_b), :] = proj_c_b
+
+        return self.projections, self.components
     
     def run(self):
         for i in range(min(self.n, len(self.sorted_edges))):
