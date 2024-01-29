@@ -84,7 +84,7 @@ class Transform():
 
     def translate(self, points:np.ndarray) -> np.ndarray:
         trans_points = np.zeros(shape=(len(points),2))
-        trans_points = points - np.array([self.x, self.y])
+        trans_points = points + np.array([self.x, self.y])
         return trans_points
 
     def rotate(self, points:np.ndarray) -> np.ndarray:
