@@ -107,7 +107,6 @@ class Transform():
         return transform_points
     
 def fix_rotation(segment:np.ndarray, 
-                 ref_point:np.ndarray, 
                  points:np.ndarray, 
                  direction='top') -> np.ndarray:
     '''
@@ -116,13 +115,15 @@ def fix_rotation(segment:np.ndarray,
     new_points = points.copy()
 
     if direction == 'top':
-        if ref_point[1] >= segment[:,1].min():
+        max_y = points[:,1].max()
+        if max_y > segment[:,1].max():
             # Rotate 180 degrees
             t = Transform(sin=0, cos=-1)
             new_points = t.rotate(new_points)
 
     elif direction == 'bottom':
-        if ref_point[1] <= segment[:,1].min():
+        min_y = points[:,1].min()
+        if min_y < segment[:,1].min():
             # Rotate 180 degrees
             t = Transform(sin=0, cos=-1)
             new_points = t.rotate(new_points)

@@ -53,7 +53,6 @@ class TopoMap():
         component_points = t.rotate(component_points)
 
         component_points = fix_rotation(component_points[edge_i], 
-                                        ref_point, 
                                         component_points, 
                                         direction=direction)
 
@@ -89,53 +88,70 @@ class TopoMap():
             # Get components the points belong to
             c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
             proj_c_a, proj_c_b = self.projections[list(c_a)], self.projections[list(c_b)]
+            i_a_comp, i_b_comp = list(c_a).index(i_a), list(c_b).index(i_b)
 
             if i==iter-1:
                 print(f'Number of points in A: {len(proj_c_a)}')
                 print(f'Number of points in B: {len(proj_c_b)}')
-                ax[0].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black')
+                print(f'Distance: {d}')
+                ax[0].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
+                              alpha=0.1, linewidths=0)
 
-                ax[0].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5)
-                for xi, yi, pidi in zip(proj_c_a[:,0],proj_c_a[:,1],list(range(len(proj_c_a)))):
-                    ax[0].annotate(str(pidi), xy=(xi,yi), color='red')
-                ax[0].scatter(p_a[0], p_a[1], marker='^', c='r')
+                ax[0].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5, 
+                              alpha=0.1, linewidths=0)
+                ax[0].scatter(p_a[0], p_a[1], marker='^', c='yellow')
 
-                ax[0].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5)
-                for xi, yi, pidi in zip(proj_c_b[:,0],proj_c_b[:,1],list(range(len(proj_c_b)))):
-                    ax[0].annotate(str(pidi), xy=(xi,yi), color='green')
-                ax[0].scatter(p_b[0], p_b[1], marker='^', c='g')
+                ax[0].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5, 
+                              alpha=0.1, linewidths=0)
+                ax[0].scatter(p_b[0], p_b[1], marker='^', c='blue')
 
                 ax[0].set_title('Proj before iteration')
 
             # Rotate the first to be the topmost
             proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
+            # Rotate the second to be the bottomost
             proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
 
             if i==iter-1:
-                ax[1].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black')
-                ax[1].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5)
-                for xi, yi, pidi in zip(proj_c_a[:,0],proj_c_a[:,1],list(range(len(proj_c_a)))):
-                    ax[1].annotate(str(pidi), xy=(xi,yi), color='red')
+                ax[1].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
+                              alpha=0.1, linewidths=0)
+                
+                ax[1].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5, 
+                              alpha=0.1, linewidths=0)
+                ax[1].scatter(proj_c_a[i_a_comp,0], proj_c_a[i_a_comp,1], marker='^', c='yellow')
+                ax[1].plot([proj_c_a[edge_t[0],0], proj_c_a[edge_t[1],0]],
+                           [proj_c_a[edge_t[0],1], proj_c_a[edge_t[1],1]],
+                            color='red', linewidth=1)
 
-                ax[1].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5)
-                for xi, yi, pidi in zip(proj_c_b[:,0],proj_c_b[:,1],list(range(len(proj_c_b)))):
-                    ax[1].annotate(str(pidi), xy=(xi,yi), color='green')
+                ax[1].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5, 
+                              alpha=0.1, linewidths=0)
+                ax[1].scatter(proj_c_b[i_b_comp,0], proj_c_b[i_b_comp,1], marker='^', c='blue')
+                ax[1].plot([proj_c_b[edge_b[0],0], proj_c_b[edge_b[1],0]],
+                           [proj_c_b[edge_b[0],1], proj_c_b[edge_b[1],1]],
+                            color='blue', linewidth=1)
 
                 ax[1].set_title('Proj after rotation')
 
-            # Rotate the second to be the bottomost
             proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
             proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
 
             if i==iter-1:
-                ax[2].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black')
-                ax[2].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5)
-                for xi, yi, pidi in zip(proj_c_a[:,0],proj_c_a[:,1],list(range(len(proj_c_a)))):
-                    ax[2].annotate(str(pidi), xy=(xi,yi), color='red')
+                ax[2].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
+                              alpha=0.1, linewidths=0)
+                
+                ax[2].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5, 
+                              alpha=0.1, linewidths=0)
+                ax[2].scatter(proj_c_a[i_a_comp,0], proj_c_a[i_a_comp,1], marker='^', c='yellow')
+                ax[2].plot([proj_c_a[edge_t[0],0], proj_c_a[edge_t[1],0]],
+                           [proj_c_a[edge_t[0],1], proj_c_a[edge_t[1],1]],
+                            color='red', linewidth=1)
 
-                ax[2].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5)
-                for xi, yi, pidi in zip(proj_c_b[:,0],proj_c_b[:,1],list(range(len(proj_c_b)))):
-                    ax[2].annotate(str(pidi), xy=(xi,yi), color='green')
+                ax[2].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5, 
+                              alpha=0.1, linewidths=0)
+                ax[2].scatter(proj_c_b[i_b_comp,0], proj_c_b[i_b_comp,1], marker='^', c='blue')
+                ax[2].plot([proj_c_b[edge_b[0],0], proj_c_b[edge_b[1],0]],
+                           [proj_c_b[edge_b[0],1], proj_c_b[edge_b[1],1]],
+                            color='blue', linewidth=1)
 
                 ax[2].set_title('Proj after translation')
 
@@ -162,9 +178,10 @@ class TopoMap():
 
             # Rotate the first to be the topmost
             proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
+            # Rotate the second to be the bottomost
             proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
 
-            # Rotate the second to be the bottomost
+            # Translate components
             proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
             proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
 
@@ -274,30 +291,6 @@ class TopoMapCut(TopoMap):
 
         return self.proj_subsets
     
-    def rotate_component(self, 
-                         component_points:np.ndarray, 
-                         ref_point:np.ndarray, 
-                         ref_point_i:int,
-                         direction='top') -> np.ndarray:
-        
-        if len(component_points) == 1:
-            return component_points, [0,0]
-        
-        hull = get_hull(component_points)
-
-        closest_edge, edge_i = closest_edge_point(hull, ref_point)
-        
-        t = Transform()
-        t.cos, t.sin = find_angle(closest_edge)
-        component_points = t.rotate(component_points)
-
-        component_points = fix_rotation(component_points[edge_i], 
-                                        component_points[ref_point_i], 
-                                        component_points, 
-                                        direction=direction)
-
-        return component_points, edge_i
-    
     def join_components(self):
         for i in range(self.last_processed_edge, min(self.n, len(self.sorted_edges))):
             # Get points from the edge
@@ -313,8 +306,8 @@ class TopoMapCut(TopoMap):
             i_a_comp, i_b_comp = list(c_a).index(i_a), list(c_b).index(i_b)
 
             # Rotate the first to be the topmost
-            proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, i_a_comp, direction='top')
-            proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, i_b_comp, direction='bottom')
+            proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
+            proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
 
             # Rotate the second to be the bottomost
             proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
@@ -362,9 +355,9 @@ class TopoMapCut(TopoMap):
                 ax[0].set_title('Proj before iteration')
 
             # Rotate the first to be the topmost
-            proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, i_a_comp, direction='top')
+            proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
             # Rotate the second to be the bottomost
-            proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, i_b_comp, direction='bottom')
+            proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
 
             if i==self.last_processed_edge+iter-1:
                 ax[1].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
