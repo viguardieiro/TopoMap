@@ -83,7 +83,7 @@ class TopoMapCut(TopoMap):
 
         return self.components
     
-    def project_components(self, proj_method='tsne', perplexity=30):
+    def project_components(self, proj_method='tsne', perplexity=30, rescale=True):
         self.proj_subsets = []
 
         if self.subsets is None:
@@ -91,10 +91,14 @@ class TopoMapCut(TopoMap):
 
         for j in range(len(self.subsets)):
             self.proj_subsets.append([])
+            orig_scale = self.components_points[j][:,1].max() - self.components_points[j][:,1].min()
 
             if proj_method=='tsne' and len(self.subsets[j]) > perplexity:
                 proj = TSNE(n_components=2, perplexity=perplexity)
                 self.proj_subsets[-1] = proj.fit_transform(self.components_points[j])
+                if rescale:
+                    proj_scale = self.proj_subsets[-1][:,1].max() - self.proj_subsets[-1][:,1].min()
+                    self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
 
             elif proj_method=='umap':
                 proj = umap.UMAP(n_components=2)
