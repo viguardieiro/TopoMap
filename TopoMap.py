@@ -171,3 +171,44 @@ class TopoMap():
             self.projections[list(c_b), :] = proj_c_b
 
         return self.projections
+
+
+class TopoMapCut():
+    def __init__(self, points:np.ndarray) -> None:
+        self.points = points
+        self.n = len(points)
+
+        self.mst = self.get_mst()
+        self.sorted_edges = self.get_sorted_edges()
+
+        self.projections = np.zeros(shape=(self.n, 2), dtype=np.float32)
+        self.components = DisjointSet(list(range(self.n)))
+
+    def get_mst(self):
+        dists = squareform(pdist(self.points))
+        self.mst = minimum_spanning_tree(dists).toarray()
+        return self.mst
+    
+    def get_sorted_edges(self):
+        G = nx.from_numpy_array(self.mst)
+        self.sorted_edges = sorted(G.edges(data=True), 
+                                   key=lambda edge: edge[2].get('weight', 1))
+        return self.sorted_edges
+    
+    def get_components(self, max_components=-1, min_dist=-1):
+        for i in range(min(self.n, len(self.sorted_edges))):
+            # Get points from the edge
+            i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
+
+            # Distance between points
+            d = self.sorted_edges[i][2]['weight']
+
+            if min_dist!=-1 and d >= min_dist:
+                break
+            if max_components!=-1 and len(self.components.subsets()) <= max_components:
+                break
+            
+            # Merge components 
+            self.components.merge(i_a, i_b)
+
+        return self.components
