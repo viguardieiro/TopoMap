@@ -26,11 +26,18 @@ def distance_segment_point(segment, p):
         return 0
     if all(a == b):
         return norm(a-p)
-    if np.arccos(np.dot((p-a) / norm(p-a), (b-a) / norm(b-a))) > np.pi / 2:
-        return norm(p-a)
-    if np.arccos(np.dot((p-b) / norm(p-b), (a-b) / norm(a-b))) > np.pi / 2:
-        return norm(p-b)
-    return norm(np.cross(a-b, a-p))/norm(b-a)
+    else:
+        proj_p_ab = np.dot((p-a), (b-a))
+        norm_proj_p_ab = proj_p_ab / (norm(b-a)**2)
+
+        if norm_proj_p_ab <= 0:
+            closest_point = a
+        elif norm_proj_p_ab>= 1:
+            closest_point = b
+        else:
+            closest_point = a + norm_proj_p_ab*(b-a)
+
+        return norm(closest_point-p)
 
 def closest_edge_point(hull, 
                        ref_point:np.ndarray):
