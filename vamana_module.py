@@ -75,7 +75,6 @@ class VamanaIndex:
         self.one_pass(a=1)
         self.one_pass()
 
-        # random permutation + sequential graph update
         
         
 
@@ -165,3 +164,6 @@ class VamanaIndex:
                 if a * np.linalg.norm(self._index[nn][0]- self._index[idx][0]) <= np.linalg.norm(node[0] - self._index[idx][0] ):
                     delete_set.add(idx)
             candid = candid - delete_set
+
+    def get_index(self):
+        return self._index
