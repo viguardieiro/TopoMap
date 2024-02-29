@@ -17,9 +17,11 @@ from sklearn.manifold import TSNE
 from TopoMap import TopoMap
 
 class TopoMapCut(TopoMap):
-    def __init__(self, points:np.ndarray) -> None:
+    def __init__(self, points:np.ndarray,
+                 metric='euclidean') -> None:
         self.points = points
         self.n = len(points)
+        self.metric = metric
 
         self.mst = self.get_mst()
         self.sorted_edges = self.get_sorted_edges()
@@ -31,9 +33,8 @@ class TopoMapCut(TopoMap):
         self.components_points = None
 
         self.proj_subsets = np.zeros(shape=(self.n, 2), dtype=np.float32)
+        self.n_components_non_single = []
 
-        self.last_processed_edge = -1
-    
     def get_component_of_points(self):
         if self.subsets is None:
             self.subsets = self.components.subsets()
@@ -59,9 +60,22 @@ class TopoMapCut(TopoMap):
 
         return self.components_points
     
+    def num_components_non_single(self):
+        n_comp = 0
+        comps = self.components.subsets()
+        for j in range(len(comps)):
+            if len(comps[j]) > 1:
+                n_comp += 1
+        return n_comp
+    
     def get_components(self, max_components=-1, 
+                       max_comp_non_single=-1,
                        min_dist=-1):
-        for i in range(min(self.n, len(self.sorted_edges))):
+        
+        if max_comp_non_single != -1:
+            flag_comp = False
+
+        for i in range(len(self.sorted_edges)):
             # Get points from the edge
             i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
 
@@ -69,12 +83,27 @@ class TopoMapCut(TopoMap):
             d = self.sorted_edges[i][2]['weight']
 
             if min_dist!=-1 and d >= min_dist:
+                print(f'[INFO] Min distance hit. Distance: {d} | Min_dist: {min_dist}')
                 break
             if max_components!=-1 and len(self.components.subsets()) <= max_components:
+                print(f'[INFO] Max components hit. # components: {len(self.components.subsets())} | Max_components: {max_components}')
                 break
+            if max_comp_non_single!=-1:
+                if not flag_comp:
+                    if len(self.n_components_non_single)>1 and self.n_components_non_single[-1] >= max_comp_non_single:
+                        flag_comp = True
+                else:
+                    if self.n_components_non_single[-1] <= max_comp_non_single:
+                        print(f'[INFO] Max components non single hit. # components non single: {self.n_components_non_single[-1]}')
+                        break
             
             # Merge components 
             self.components.merge(i_a, i_b)
+
+            self.n_components_non_single.append(self.num_components_non_single())
+
+        if i == len(self.sorted_edges)-1:
+            print(f'[INFO] Number of edges hit. Edges processed: {i}')
 
         self.last_processed_edge = i
         self.subsets = self.components.subsets()
@@ -91,14 +120,10 @@ class TopoMapCut(TopoMap):
 
         for j in range(len(self.subsets)):
             self.proj_subsets.append([])
-            orig_scale = self.components_points[j][:,1].max() - self.components_points[j][:,1].min()
 
             if proj_method=='tsne' and len(self.subsets[j]) > perplexity:
                 proj = TSNE(n_components=2, perplexity=perplexity)
                 self.proj_subsets[-1] = proj.fit_transform(self.components_points[j])
-                if rescale:
-                    proj_scale = self.proj_subsets[-1][:,1].max() - self.proj_subsets[-1][:,1].min()
-                    self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
 
             elif proj_method=='umap':
                 proj = umap.UMAP(n_components=2)
@@ -110,6 +135,21 @@ class TopoMapCut(TopoMap):
                 
             else:
                 self.proj_subsets[-1] = np.array([[0,0]])
+
+            if rescale and (len(self.subsets[j]) >= 2):
+                scale_i = 0
+                orig_scale = self.components_points[j][:,scale_i].max() - self.components_points[j][:,scale_i].min()
+
+                if orig_scale > 0:
+                    proj_scale = self.proj_subsets[-1][:,scale_i].max() - self.proj_subsets[-1][:,scale_i].min()
+                    self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
+
+                else:
+                    scale_i = 1
+                    orig_scale = self.components_points[j][:,scale_i].max() - self.components_points[j][:,scale_i].min()
+                    if orig_scale > 0:
+                        proj_scale = self.proj_subsets[-1][:,scale_i].max() - self.proj_subsets[-1][:,scale_i].min()
+                        self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
 
             self.projections[list(self.subsets[j]), :] = self.proj_subsets[-1]
 
@@ -127,7 +167,6 @@ class TopoMapCut(TopoMap):
             # Get components the points belong to
             c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
             proj_c_a, proj_c_b = self.projections[list(c_a)], self.projections[list(c_b)]
-            i_a_comp, i_b_comp = list(c_a).index(i_a), list(c_b).index(i_b)
 
             # Rotate the first to be the topmost
             proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
