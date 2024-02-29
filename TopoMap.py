@@ -15,9 +15,11 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 class TopoMap():
-    def __init__(self, points:np.ndarray) -> None:
+    def __init__(self, points:np.ndarray,
+                 metric='euclidean') -> None:
         self.points = points
         self.n = len(points)
+        self.metric = metric
 
         self.mst = self.get_mst()
         self.sorted_edges = self.get_sorted_edges()
@@ -26,7 +28,7 @@ class TopoMap():
         self.components = DisjointSet(list(range(self.n)))
 
     def get_mst(self):
-        dists = squareform(pdist(self.points))
+        dists = squareform(pdist(self.points, metric=self.metric))
         self.mst = minimum_spanning_tree(dists).toarray()
         return self.mst
     
