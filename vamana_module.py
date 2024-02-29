@@ -1,8 +1,10 @@
-# from heapq import heapify, heappop, heappush
-# import bisect
 import pickle
 import numpy as np
+import datetime
+from pathlib import Path
 from Vamanautils import insert_ordered, almost_in
+from distance_pair import distance_pair
+from sortedcontainers import SortedList
 
 class VamanaIndex:
     """Vamana graph algorithm implementation. Every element in each graph is a
@@ -14,18 +16,22 @@ class VamanaIndex:
         super().__init__()
         self._L = L
         self._a = a
-        self._R = 10
+        self._R = R
         self._start = None  # index of starting vector
         self._index = {} #dictionary with key idx and value = (vec, out_neighbors)
         self._size = None
 
 
-    def create(self, dataset):
+    def create(self, dataset, save_intermediate = False):
+        '''
+        Create a Vamana Index on the dataset. Set save_intermediate  = True to save the intermediate states of the graph during the algorithm
+        '''
         
 
         self._R = min(self._R, len(dataset))
-
+        starting_time = datetime.datetime.now()
         # intialize graph with dataset
+
         # set starting location as medoid vector
         dist = float("inf")
         medoid = np.median(dataset, axis=0)
@@ -49,79 +55,99 @@ class VamanaIndex:
         
 
         # random permutation + sequential graph update
-        #TO DO: Here there is no random permutation, only doing that in the same order.
-        for n in range(self._size):
+        permutation = np.random.permutation(self._size)
+        for n in permutation:
             node = self._index[n]
             
             (_, V) = self.search(node[0], nq=1)
             # print(node)
-            self._robust_prune(node, V)
+            self._robust_prune(n, node, V)
             # print(node)
             
             for inb in node[1]:
                 nbr = self._index[inb]
                 if len(nbr[1].union({n})) > self._R:
                     
-                    self._robust_prune(nbr, nbr[1].union({n}))
+                    self._robust_prune(inb, nbr, nbr[1].union({n}))
                     
                 else:
                     nbr[1].add(n)
-            # with open(f'index_iter_{n}.pkl', 'wb') as f:
-            #     pickle.dump(self._index,f)
+
+            if(save_intermediate):
+                day = starting_time.day
+                month = starting_time.month
+                year = starting_time.year
+                hour = starting_time.hour
+                minute = starting_time.minute
+                second = starting_time.second
+
+                path = f'local/{year}_{month}_{day}_{hour}_{minute}_{second}'
+                Path(path).mkdir(parents = True, exist_ok = True)
+                with open(f'{path}/index_iter_{n}.pkl', 'wb') as f:
+                    pickle.dump(self._index,f)
 
 
     def search(self,query, nq: int = 10):
         """Greedy search.
         """
-       
+        assert (self._L >= nq,f'expected L >= k, but received L = {self._L} and k = {nq}')
 
 
         
         query_distance = np.linalg.norm(self._index[self._start][0] - query)
-        nns = np.array([[query_distance, self._start]]) #nns is a list of pairs of the form (distance, index)
+        
+        nns = SortedList() #nns is a SortedList or pairs(index,distance) ordered by distance
+        nns.add(distance_pair(self._start,query_distance))
+        
         visit = set()  # set of visited nodes
         
 
         # find top-k nearest neighbors
-        while set(nns[:,1]) - visit:             #Check if have nns that were not visited. TO DO: speed up that part.
-           
-            for neighbor in nns:                 #Improve that. nns is a list of neighbors ordered by start distance. I want to find the smallest element of nns that is not in visit. This approach takes O(nns * visit)
-                if not almost_in(visit, neighbor[1]) :
-                    nn = neighbor[1]
+        while set([dp.index for dp in nns]) - visit:             #Check if have nns that were not visited. TO DO: speed up that part.
+            
+            for i in range(len(nns)):                 #Improve that. nns is a list of neighbors ordered by start distance. I want to find the smallest element of nns that is not in visit. This approach takes O(nns * visit)
+                if nns[i].index not in visit :  
+                    nn = nns[i].index
                     
                     break
             #We only define nn inside the loop, but since the while condition is still satisfied, I know that the if condition will be satisfied at least one time.
             
             for idx in self._index[nn][1]:
-
-                d = np.linalg.norm(self._index[idx][0] - query)
-                  
-                if almost_in(nns[:,1],idx):
+                #Union of nns and N_out(nn)
+                
+                if idx in [dp.index for dp in nns]: #Here is other point of improvement. Using SortedLists has this drawback of have to create a list of index to search. Maybe I can do a for loop and check instead of creating a new list to use "in"
                     
-                    continue            
+                    continue
+                    
+                d = np.linalg.norm(self._index[idx][0] - query)               
                 
-                nns = insert_ordered(nns,[d,idx])
-                
-                # heappush(nns, (d, idx))
+                nns.add(distance_pair(idx,d))               
             
             visit.add(nn)
 
             # retain up to search list size elements.
             if(len(nns)>self._L):
-                nns = nns[:self._L]
+                nns = SortedList(nns[:self._L])
         
         # print(nns)
 
         return (nns[:nq], visit)
 
 
-    def _robust_prune(self,node: tuple[np.ndarray, set[int]], candid: set[int], a = None):
+    def _robust_prune(self, index_node:int ,node: tuple[np.ndarray, set[int]], candid: set[int], a = None):
         #TO DO: Update the data structure to record the index of the index of the current node, not only of the neighbors
         if( a is None):
             a = self._a
         
         candid.update(node[1])
+
+        if index_node in candid:
+            candid.remove(index_node)
+
+
+        #Removing out neighbors of index_node
         node[1].clear()
+
 
         while candid:
             (min_d, nn) = (float("inf"), None)
