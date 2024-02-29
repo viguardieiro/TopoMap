@@ -12,7 +12,7 @@ class VamanaIndex:
     within the graph.
     """
 
-    def __init__(self, L: int = 10, a: float = 1.5, R: int = 10):
+    def __init__(self, L: int = 40, a: float = 1.2, R: int = 40):
         super().__init__()
         self._L = L
         self._a = a
@@ -22,7 +22,26 @@ class VamanaIndex:
         self._size = None
 
 
-    def create(self, dataset, save_intermediate = False):
+    def one_pass(self,a = None):
+        permutation = np.random.permutation(self._size)
+        for n in permutation:
+            node = self._index[n]
+            
+            (_, V) = self.search(node[0], nq=1)
+            # print(node)
+            self._robust_prune(n, node, V,a = a)
+            # print(node)
+            
+            for inb in node[1]:
+                nbr = self._index[inb]
+                if len(nbr[1].union({n})) > self._R:
+                    
+                    self._robust_prune(inb, nbr, nbr[1].union({n}))
+                    
+                else:
+                    nbr[1].add(n)
+        
+    def create(self, dataset,save_intermediate = False):
         '''
         Create a Vamana Index on the dataset. Set save_intermediate  = True to save the intermediate states of the graph during the algorithm
         '''
@@ -46,45 +65,21 @@ class VamanaIndex:
 
        
         # randomize out-connections for each node
-        #idxs vary from 0 to n-2, so when we sum 1, the max is still n-1.
+        #idxs vary from 0 to n-2, so when we sum 1, the max is still n-1 
         for n in range(self._size):
             node = self._index[n]
             idxs = np.random.choice(self._size - 1, replace=False, size=(self._R,))
             idxs[idxs >= n] += 1  # ensure no node points to itself
             node[1].update(idxs)
-        
+
+        self.one_pass(a=1)
+        self.one_pass()
 
         # random permutation + sequential graph update
-        permutation = np.random.permutation(self._size)
-        for n in permutation:
-            node = self._index[n]
-            
-            (_, V) = self.search(node[0], nq=1)
-            # print(node)
-            self._robust_prune(n, node, V)
-            # print(node)
-            
-            for inb in node[1]:
-                nbr = self._index[inb]
-                if len(nbr[1].union({n})) > self._R:
-                    
-                    self._robust_prune(inb, nbr, nbr[1].union({n}))
-                    
-                else:
-                    nbr[1].add(n)
+        
+        
 
-            if(save_intermediate):
-                day = starting_time.day
-                month = starting_time.month
-                year = starting_time.year
-                hour = starting_time.hour
-                minute = starting_time.minute
-                second = starting_time.second
-
-                path = f'local/{year}_{month}_{day}_{hour}_{minute}_{second}'
-                Path(path).mkdir(parents = True, exist_ok = True)
-                with open(f'{path}/index_iter_{n}.pkl', 'wb') as f:
-                    pickle.dump(self._index,f)
+            
 
 
     def search(self,query, nq: int = 10):
