@@ -41,9 +41,9 @@ class VamanaIndex:
                 else:
                     nbr[1].add(n)
         
-    def create(self, dataset,save_intermediate = False):
+    def create(self, dataset):
         '''
-        Create a Vamana Index on the dataset. Set save_intermediate  = True to save the intermediate states of the graph during the algorithm
+        Create a Vamana Index on the dataset. 
         '''
         
 
@@ -84,7 +84,7 @@ class VamanaIndex:
     def search(self,query, nq: int = 10):
         """Greedy search.
         """
-        assert (self._L >= nq,f'expected L >= k, but received L = {self._L} and k = {nq}')
+        assert self._L >= nq,f'expected L >= k, but received L = {self._L} and k = {nq}'
 
 
         
@@ -167,3 +167,20 @@ class VamanaIndex:
 
     def get_index(self):
         return self._index
+    
+
+    def get_adj_matrix(self):
+        '''
+        Return the adjacency matrix of the graph using the Euclidian distance as weight
+        '''
+        assert self._index ,f'No adjacency List created'
+
+        output = np.zeros((self._size,self._size))
+
+
+        for k,v in self._index.items():
+            for ngb in v[1]:
+                #TO DO: Check if the matrix is symmetric. If it is, fill both [k,ngb] and [ngb,k] at the same time
+                output[k,ngb] = np.linalg.norm(self._index[ngb][0]- self._index[k][0])
+        return output
+                
