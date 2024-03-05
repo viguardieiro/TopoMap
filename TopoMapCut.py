@@ -32,9 +32,7 @@ class TopoMapCut(TopoMap):
         self.max_dist = max_dist
         self.min_points_comp = min_points_comp
         self.proj_method = proj_method
-
-        if not ignore_outliers:
-            self.min_points_comp = 0
+        self.ignore_outliers = ignore_outliers
 
         self.mst = self.get_mst()
         self.sorted_edges = self.get_sorted_edges()
@@ -44,8 +42,8 @@ class TopoMapCut(TopoMap):
         self.subsets = None
         self.points_component = None
         self.components_points = None
-        self.outlier_comps_i = None
-        self.outlier_comps = None
+        self.outlier_comps_i = []
+        self.outlier_comps = []
 
         self.proj_subsets = np.zeros(shape=(self.n, 2), dtype=np.float32)
         self.n_components_non_single = []
@@ -128,8 +126,7 @@ class TopoMapCut(TopoMap):
     
     def project_components(self, 
                            proj_method='tsne', 
-                           perplexity=30, 
-                           rescale=False):
+                           perplexity=30):
         self.proj_subsets = []
 
         if self.subsets is None:
@@ -156,21 +153,6 @@ class TopoMapCut(TopoMap):
                 
             else:
                 self.proj_subsets[-1] = np.array([[0,0]])
-
-            if rescale and (len(self.subsets[j]) >= 2):
-                scale_i = 0
-                orig_scale = self.components_points[j][:,scale_i].max() - self.components_points[j][:,scale_i].min()
-
-                if orig_scale > 0:
-                    proj_scale = self.proj_subsets[-1][:,scale_i].max() - self.proj_subsets[-1][:,scale_i].min()
-                    self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
-
-                else:
-                    scale_i = 1
-                    orig_scale = self.components_points[j][:,scale_i].max() - self.components_points[j][:,scale_i].min()
-                    if orig_scale > 0:
-                        proj_scale = self.proj_subsets[-1][:,scale_i].max() - self.proj_subsets[-1][:,scale_i].min()
-                        self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
 
             self.projections[list(self.subsets[j]), :] = self.proj_subsets[-1]
 
@@ -212,7 +194,11 @@ class TopoMapCut(TopoMap):
         self.get_components(max_components=self.max_components,
                             max_dist=self.max_dist)
         
-        self.identify_outlier_components(min_points_comp=self.min_points_comp)
+        if self.ignore_outliers:
+            self.identify_outlier_components(min_points_comp=self.min_points_comp)
+        else:
+            self.outlier_comps = []
+            self.outlier_comps_i = []
 
         self.project_components(proj_method=self.proj_method)
         
