@@ -370,13 +370,12 @@ class TopoMapCutInv(TopoMap):
             # Translate projections of this component to match the center's projection
             comp_ids = list(self.subsets[j])
 
-            proj_center_x = np.mean(self.projections[comp_ids,0])
-            proj_center_y = np.mean(self.projections[comp_ids,1])
+            proj_center = np.average(self.projections[comp_ids,:], axis=0)
 
-            comp_center = self.components_center[j]
+            comp_center = self.components_proj[j]
 
-            t_proj = Transform(x=comp_center[0]-proj_center_x,
-                               y=comp_center[1]-proj_center_y)
+            t_proj = Transform(x=comp_center[0]-proj_center[0],
+                               y=comp_center[1]-proj_center[1])
             self.projections[comp_ids,:] = t_proj.translate(self.projections[comp_ids,:])
 
             # Translate other centers and projections
