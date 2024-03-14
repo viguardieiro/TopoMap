@@ -10,9 +10,6 @@ from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotat
 
 import matplotlib.pyplot as plt
 
-import umap
-from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 
 class TopoMap():
     def __init__(self, points:np.ndarray,
