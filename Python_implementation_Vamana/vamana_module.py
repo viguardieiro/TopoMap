@@ -2,8 +2,8 @@ import pickle
 import numpy as np
 import datetime
 from pathlib import Path
-from Vamanautils import insert_ordered, almost_in
-from distance_pair import distance_pair
+from Python_implementation_Vamana.Vamanautils import insert_ordered, almost_in
+from Python_implementation_Vamana.distance_pair import distance_pair
 from sortedcontainers import SortedList
 
 class VamanaIndex:
