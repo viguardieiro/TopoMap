@@ -18,10 +18,21 @@ from TopoMap import TopoMap
 
 class TopoMapCut(TopoMap):
     def __init__(self, points:np.ndarray,
-                 metric='euclidean') -> None:
+                 metric='euclidean',
+                 max_components=-1,
+                 max_dist=-1,
+                 min_points_comp=2,
+                 proj_method='tsne',
+                 ignore_outliers=True) -> None:
         self.points = points
         self.n = len(points)
         self.metric = metric
+
+        self.max_components = max_components
+        self.max_dist = max_dist
+        self.min_points_comp = min_points_comp
+        self.proj_method = proj_method
+        self.ignore_outliers = ignore_outliers
 
         self.mst = self.get_mst()
         self.sorted_edges = self.get_sorted_edges()
@@ -31,6 +42,8 @@ class TopoMapCut(TopoMap):
         self.subsets = None
         self.points_component = None
         self.components_points = None
+        self.outlier_comps_i = []
+        self.outlier_comps = []
 
         self.proj_subsets = np.zeros(shape=(self.n, 2), dtype=np.float32)
         self.n_components_non_single = []
@@ -69,11 +82,7 @@ class TopoMapCut(TopoMap):
         return n_comp
     
     def get_components(self, max_components=-1, 
-                       max_comp_non_single=-1,
-                       min_dist=-1):
-        
-        if max_comp_non_single != -1:
-            flag_comp = False
+                       max_dist=-1):
 
         for i in range(len(self.sorted_edges)):
             # Get points from the edge
@@ -82,20 +91,12 @@ class TopoMapCut(TopoMap):
             # Distance between points
             d = self.sorted_edges[i][2]['weight']
 
-            if min_dist!=-1 and d >= min_dist:
-                print(f'[INFO] Min distance hit. Distance: {d} | Min_dist: {min_dist}')
+            if max_dist!=-1 and d >= max_dist:
+                print(f'[INFO] Min distance hit. Distance: {d} | Max_dist: {max_dist}')
                 break
             if max_components!=-1 and len(self.components.subsets()) <= max_components:
                 print(f'[INFO] Max components hit. # components: {len(self.components.subsets())} | Max_components: {max_components}')
                 break
-            if max_comp_non_single!=-1:
-                if not flag_comp:
-                    if len(self.n_components_non_single)>1 and self.n_components_non_single[-1] >= max_comp_non_single:
-                        flag_comp = True
-                else:
-                    if self.n_components_non_single[-1] <= max_comp_non_single:
-                        print(f'[INFO] Max components non single hit. # components non single: {self.n_components_non_single[-1]}')
-                        break
             
             # Merge components 
             self.components.merge(i_a, i_b)
@@ -112,13 +113,30 @@ class TopoMapCut(TopoMap):
 
         return self.components
     
-    def project_components(self, proj_method='tsne', perplexity=30, rescale=True):
+    def identify_outlier_components(self, min_points_comp=2):
+        self.outlier_comps = []
+        self.outlier_comps_i = []
+
+        for j in range(len(self.subsets)):
+            if len(self.subsets[j]) < min_points_comp:
+                self.outlier_comps_i.append(j)
+                self.outlier_comps.append(self.subsets[j])
+
+        return self.outlier_comps
+    
+    def project_components(self, 
+                           proj_method='tsne', 
+                           perplexity=30):
         self.proj_subsets = []
 
         if self.subsets is None:
             self.subsets = self.components.subsets()
 
         for j in range(len(self.subsets)):
+
+            if j in self.outlier_comps:
+                continue
+
             self.proj_subsets.append([])
 
             if proj_method=='tsne' and len(self.subsets[j]) > perplexity:
@@ -135,21 +153,6 @@ class TopoMapCut(TopoMap):
                 
             else:
                 self.proj_subsets[-1] = np.array([[0,0]])
-
-            if rescale and (len(self.subsets[j]) >= 2):
-                scale_i = 0
-                orig_scale = self.components_points[j][:,scale_i].max() - self.components_points[j][:,scale_i].min()
-
-                if orig_scale > 0:
-                    proj_scale = self.proj_subsets[-1][:,scale_i].max() - self.proj_subsets[-1][:,scale_i].min()
-                    self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
-
-                else:
-                    scale_i = 1
-                    orig_scale = self.components_points[j][:,scale_i].max() - self.components_points[j][:,scale_i].min()
-                    if orig_scale > 0:
-                        proj_scale = self.proj_subsets[-1][:,scale_i].max() - self.proj_subsets[-1][:,scale_i].min()
-                        self.proj_subsets[-1] = (orig_scale/proj_scale)*self.proj_subsets[-1]
 
             self.projections[list(self.subsets[j]), :] = self.proj_subsets[-1]
 
@@ -168,6 +171,9 @@ class TopoMapCut(TopoMap):
             c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
             proj_c_a, proj_c_b = self.projections[list(c_a)], self.projections[list(c_b)]
 
+            if c_a in self.outlier_comps or c_b in self.outlier_comps:
+                continue
+
             # Rotate the first to be the topmost
             proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
             proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
@@ -183,93 +189,20 @@ class TopoMapCut(TopoMap):
             self.projections[list(c_b), :] = proj_c_b
 
         return self.projections
+    
+    def run(self):
+        self.get_components(max_components=self.max_components,
+                            max_dist=self.max_dist)
+        
+        if self.ignore_outliers:
+            self.identify_outlier_components(min_points_comp=self.min_points_comp)
+        else:
+            self.outlier_comps = []
+            self.outlier_comps_i = []
 
-    def run_iter(self, iter=1):
-        fig, ax = plt.subplots(1,3, figsize=(12,4))
+        self.project_components(proj_method=self.proj_method)
+        
+        self.join_components()
 
-        for i in range(self.last_processed_edge, self.last_processed_edge+iter):
-            # Get points from the edge
-            i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
-            p_a, p_b = self.projections[i_a,:], self.projections[i_b,:]
-
-            # Distance between points
-            d = self.sorted_edges[i][2]['weight']
-            
-            # Get components the points belong to
-            c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
-            proj_c_a, proj_c_b = self.projections[list(c_a)], self.projections[list(c_b)]
-            i_a_comp, i_b_comp = list(c_a).index(i_a), list(c_b).index(i_b)
-
-            if i==self.last_processed_edge+iter-1:
-                print(f'Number of points in A: {len(proj_c_a)}')
-                print(f'Number of points in B: {len(proj_c_b)}')
-                print(f'Distance: {d}')
-                ax[0].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
-                              alpha=0.1, linewidths=0)
-
-                ax[0].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5, 
-                              alpha=0.1, linewidths=0)
-                ax[0].scatter(p_a[0], p_a[1], marker='^', c='yellow')
-
-                ax[0].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5, 
-                              alpha=0.1, linewidths=0)
-                ax[0].scatter(p_b[0], p_b[1], marker='^', c='blue')
-
-                ax[0].set_title('Proj before iteration')
-
-            # Rotate the first to be the topmost
-            proj_c_a, edge_t = self.rotate_component(proj_c_a, p_a, direction='top')
-            # Rotate the second to be the bottomost
-            proj_c_b, edge_b = self.rotate_component(proj_c_b, p_b, direction='bottom')
-
-            if i==self.last_processed_edge+iter-1:
-                ax[1].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
-                              alpha=0.1, linewidths=0)
-                
-                ax[1].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5, 
-                              alpha=0.1, linewidths=0)
-                ax[1].scatter(proj_c_a[i_a_comp,0], proj_c_a[i_a_comp,1], marker='^', c='yellow')
-                ax[1].plot([proj_c_a[edge_t[0],0], proj_c_a[edge_t[1],0]],
-                           [proj_c_a[edge_t[0],1], proj_c_a[edge_t[1],1]],
-                            color='red', linewidth=1)
-
-                ax[1].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5, 
-                              alpha=0.1, linewidths=0)
-                ax[1].scatter(proj_c_b[i_b_comp,0], proj_c_b[i_b_comp,1], marker='^', c='blue')
-                ax[1].plot([proj_c_b[edge_b[0],0], proj_c_b[edge_b[1],0]],
-                           [proj_c_b[edge_b[0],1], proj_c_b[edge_b[1],1]],
-                            color='blue', linewidth=1)
-
-                ax[1].set_title('Proj after rotation')
-
-            proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
-            proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
-
-            if i==self.last_processed_edge+iter-1:
-                ax[2].scatter(self.projections[:,0], self.projections[:,1], s=5, c='black', 
-                              alpha=0.1, linewidths=0)
-                
-                ax[2].scatter(proj_c_a[:,0], proj_c_a[:,1], c='red', label='Comp A', s=5, 
-                              alpha=0.1, linewidths=0)
-                ax[2].scatter(proj_c_a[i_a_comp,0], proj_c_a[i_a_comp,1], marker='^', c='yellow')
-                ax[2].plot([proj_c_a[edge_t[0],0], proj_c_a[edge_t[1],0]],
-                           [proj_c_a[edge_t[0],1], proj_c_a[edge_t[1],1]],
-                            color='red', linewidth=1)
-
-                ax[2].scatter(proj_c_b[:,0], proj_c_b[:,1], c='green', label='Comp B', s=5, 
-                              alpha=0.1, linewidths=0)
-                ax[2].scatter(proj_c_b[i_b_comp,0], proj_c_b[i_b_comp,1], marker='^', c='blue')
-                ax[2].plot([proj_c_b[edge_b[0],0], proj_c_b[edge_b[1],0]],
-                           [proj_c_b[edge_b[0],1], proj_c_b[edge_b[1],1]],
-                            color='blue', linewidth=1)
-
-                ax[2].set_title('Proj after translation')
-
-            # Merge components 
-            self.components.merge(i_a, i_b)
-
-            self.projections[list(c_a), :] = proj_c_a
-            self.projections[list(c_b), :] = proj_c_b
-
-        return self.projections, self.components
+        return self.projections
     
