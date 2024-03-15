@@ -88,14 +88,14 @@ def Compute_distance(dataset,i,j, aproximate_almost_zero = False,seed = None):
         distance = distance + 1e-7*random_noise
     return distance
 
-def Compute_adj_matrix(adj_dict, input_file, turn_sym = False, aproximate_almost_zero = False):
+def Compute_adj_matrix(adj_dict, input = None, input_file ="", turn_sym = False, aproximate_almost_zero = False, drop_zeros = False):
     '''
     Compute adjacency matrix using sparse scipy representation. 
     Assumes that adj_dict is a dictionary that has each adjacency_list associated with each key
     input_file is the path for the input_file. Assumed to be on fvecs format for a while
     '''
-
-    input = fvecs_read(input_file)
+    if(input_file):
+        input = fvecs_read(input_file)
     number_of_nodes = len(adj_dict)
 
     
@@ -119,7 +119,8 @@ def Compute_adj_matrix(adj_dict, input_file, turn_sym = False, aproximate_almost
     
     
     sparse_matrix = csr_matrix((distances,indices,indptr),shape=(number_of_nodes,number_of_nodes))
-    sparse_matrix.eliminate_zeros()      
+    if(drop_zeros):
+        sparse_matrix.eliminate_zeros()      
     return sparse_matrix
 
      
@@ -135,7 +136,16 @@ class Index:
     """Read Index generated using DISKANN microsoft implementation
     """
     def __init__(self, index_path) -> None:
-        self.Index = Index_read(index_path)
+        self.index_path = index_path
+
+    def get_mst(self, points, drop_zeros = False):
+        Index = Index_read(self.index_path)
+        sparse_adj_matrix = Compute_adj_matrix(Index, input = points,drop_zeros=drop_zeros)
+        mst = Compute_MST_from_adj(sparse_adj_matrix)
+        return mst
+
+
+
 
 
     
