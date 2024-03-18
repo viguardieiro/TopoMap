@@ -1,5 +1,4 @@
 import numpy as np 
-
 from scipy.cluster.hierarchy import DisjointSet
 
 from utils import Transform
@@ -229,6 +228,7 @@ class TopoMapCutInv(TopoMap):
         self.components_range_left = None
         self.components_range_right = None
         self.components_proj = None
+        self.biggest_comp = None
 
     def get_component_of_points(self):
         if self.subsets is None:
@@ -417,7 +417,81 @@ class TopoMapCutInv(TopoMap):
 
         return self.projections
     
-    def run(self):
+    def find_scale_two_components(self, comp_a, comp_b):
+        
+        radious_a = max([self.components_range_bottom[comp_a],
+                         self.components_range_top[comp_a],
+                         self.components_range_left[comp_a],
+                         self.components_range_right[comp_a]])
+
+        origin = self.components_proj[comp_a]
+        center_b = self.components_proj[comp_b]
+
+        ref_b = self.components_proj[comp_b].copy()
+        if center_b[0] <= origin[0]:
+            ref_b[0] = center_b[0] + self.components_range_right[comp_b]
+        else:
+            ref_b[0] = center_b[0] - self.components_range_left[comp_b]
+        if center_b[1] <= origin[1]:
+            ref_b[1] = center_b[1] + self.components_range_top[comp_b]
+        else:
+            ref_b[1] = center_b[1] - self.components_range_bottom[comp_b]
+
+        ref_b = ref_b - origin
+
+        scale = radious_a/np.linalg.norm(ref_b)
+
+        return scale
+
+    def find_scale(self, n_big_components=5):
+        areas = [((self.components_range_top[i]+self.components_range_bottom[i])*
+                  (self.components_range_left[i]+self.components_range_right[i])) 
+                 for i in range(len(self.subsets))]
+
+        biggest_comp = np.argmax(areas)
+        self.biggest_comp = biggest_comp
+        biggest_n = [areas.index(x) for x in sorted(areas, reverse=True)[1:n_big_components]]
+
+        print(f'Biggest component: {biggest_comp} | Area: {areas[biggest_comp]}')
+        print(f'Top 5 areas: {sorted(areas, reverse=True)[:5]}')
+
+        scale = 0
+        for j in biggest_n:
+            scale_j = self.find_scale_two_components(biggest_comp, j)
+            scale = max([scale, scale_j])
+
+        return scale
+    
+    def join_components_scale(self, n_big_components=5):
+
+        scale = self.find_scale(n_big_components=n_big_components)
+        print(f'Scale: {scale}')
+
+        # Rescale centers
+        t_center = Transform(x=self.components_proj[self.biggest_comp][0],
+                             y=self.components_proj[self.biggest_comp][1])
+        t_scale = Transform(scalar=scale)
+        for j in range(len(self.subsets)):
+            self.components_proj[j] = t_center.translate(self.components_proj[j])
+            self.components_proj[j] = t_scale.scale(self.components_proj[j])
+
+        # Position components' points
+        for j in range(len(self.subsets)):
+
+            # Translate projections of this component to match the center's projection
+            comp_ids = list(self.subsets[j])
+
+            proj_center = np.average(self.projections[comp_ids,:], axis=0)
+
+            comp_center = self.components_proj[j]
+
+            t_proj = Transform(x=comp_center[0]-proj_center[0],
+                               y=comp_center[1]-proj_center[1])
+            self.projections[comp_ids,:] = t_proj.translate(self.projections[comp_ids,:])
+
+        return self.projections
+    
+    def run(self, scale=False, n_big_components=5):
         self.get_components(max_components=self.max_components,
                             max_dist=self.max_dist)
         
@@ -427,7 +501,10 @@ class TopoMapCutInv(TopoMap):
 
         self.get_component_ranges()
         
-        self.join_components()
+        if not scale:
+            self.join_components()
+        else:
+            self.join_components_scale(n_big_components=len(self.subsets))
 
         return self.projections
     
