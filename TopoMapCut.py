@@ -452,11 +452,11 @@ class TopoMapCutInv(TopoMap):
         self.biggest_comp = biggest_comp
         biggest_n = [areas.index(x) for x in sorted(areas, reverse=True)[1:n_big_components]]
 
-        print(f'Biggest component: {biggest_comp} | Area: {areas[biggest_comp]}')
-        print(f'Top 5 areas: {sorted(areas, reverse=True)[:5]}')
-
         scale = 0
         for j in biggest_n:
+            if areas[j] == 0:
+                break
+
             scale_j = self.find_scale_two_components(biggest_comp, j)
             scale = max([scale, scale_j])
 
@@ -465,11 +465,10 @@ class TopoMapCutInv(TopoMap):
     def join_components_scale(self, n_big_components=5):
 
         scale = self.find_scale(n_big_components=n_big_components)
-        print(f'Scale: {scale}')
 
         # Rescale centers
-        t_center = Transform(x=self.components_proj[self.biggest_comp][0],
-                             y=self.components_proj[self.biggest_comp][1])
+        t_center = Transform(x=-self.components_proj[self.biggest_comp][0],
+                             y=-self.components_proj[self.biggest_comp][1])
         t_scale = Transform(scalar=scale)
         for j in range(len(self.subsets)):
             self.components_proj[j] = t_center.translate(self.components_proj[j])
