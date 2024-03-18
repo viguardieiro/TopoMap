@@ -37,6 +37,7 @@ class TopoMapCut(TopoMap):
         self.components_points = None
         self.outlier_comps_i = []
         self.outlier_comps = []
+        self.point_comp_persistence = np.zeros(shape=self.n, dtype=np.float32)
 
         self.proj_subsets = np.zeros(shape=(self.n, 2), dtype=np.float32)
         self.n_components_non_single = []
@@ -74,6 +75,16 @@ class TopoMapCut(TopoMap):
                 n_comp += 1
         return n_comp
     
+    def get_components_persistance(self):
+        self.components_persistence = []
+
+        for j in range(len(self.subsets)):
+            point_j = next(iter(self.subsets[j])) # Get one point from the component
+            persistence_j = self.point_comp_persistence[point_j]
+            self.components_persistence.append(persistence_j)
+
+        return self.components_persistence
+    
     def get_components(self, max_components=-1, 
                        max_dist=-1):
 
@@ -91,6 +102,9 @@ class TopoMapCut(TopoMap):
                 print(f'[INFO] Max components hit. # components: {len(self.components.subsets())} | Max_components: {max_components}')
                 break
             
+            self.point_comp_persistence[i_a] = d
+            self.point_comp_persistence[i_b] = d
+
             # Merge components 
             self.components.merge(i_a, i_b)
 
@@ -103,6 +117,7 @@ class TopoMapCut(TopoMap):
         self.subsets = self.components.subsets()
         self.points_component = self.get_component_of_points()
         self.components_points = self.get_points_of_components()
+        self.components_persistence = self.get_components_persistence()
 
         return self.components
     
@@ -229,6 +244,7 @@ class TopoMapCutInv(TopoMap):
         self.components_range_right = None
         self.components_proj = None
         self.biggest_comp = None
+        self.point_comp_persistence = np.zeros(shape=self.n, dtype=np.float32)
 
     def get_component_of_points(self):
         if self.subsets is None:
@@ -263,6 +279,16 @@ class TopoMapCutInv(TopoMap):
                 n_comp += 1
         return n_comp
     
+    def get_components_persistance(self):
+        self.components_persistence = []
+
+        for j in range(len(self.subsets)):
+            point_j = next(iter(self.subsets[j])) # Get one point from the component
+            persistence_j = self.point_comp_persistence[point_j]
+            self.components_persistence.append(persistence_j)
+
+        return self.components_persistence
+    
     def get_components(self, max_components=-1, 
                        max_dist=-1):
 
@@ -293,6 +319,9 @@ class TopoMapCutInv(TopoMap):
             # Translate components
             proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
             proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
+
+            self.point_comp_persistence[i_a] = d
+            self.point_comp_persistence[i_b] = d
             
             # Merge components 
             self.components.merge(i_a, i_b)
@@ -307,6 +336,7 @@ class TopoMapCutInv(TopoMap):
         self.subsets = self.components.subsets()
         self.points_component = self.get_component_of_points()
         self.components_points = self.get_points_of_components()
+        self.components_persistence = self.get_components_persistance()
 
         return self.components
     
