@@ -26,8 +26,8 @@ class HierarchicalTopoMap(TopoMap):
         self.components = DisjointSet(list(range(self.n)))
         self.subsets = None
         self.components_points = None
-        self.components_center = None
         self.components_hull = None
+        self.points_scaled = np.zeros(shape=(self.n), dtype=bool)
     
     def get_points_of_components(self):
         if self.subsets is None:
@@ -106,20 +106,6 @@ class HierarchicalTopoMap(TopoMap):
         self.components_points = self.get_points_of_components()
 
         return self.components
-
-    def get_components_center(self):
-        self.components_center = []
-
-        for j in range(len(self.subsets)):
-            comp_ids = list(self.subsets[j])
-            points = self.projections[comp_ids,:]
-
-            center_x = (points[:,0].max() - points[:,0].min())/2
-            center_y = (points[:,1].max() - points[:,1].min())/2
-            center = np.array([center_x, center_y])
-            self.components_center.append(center)
-
-        return self.components_center
     
     def get_components_density(self):
         self.components_density = []
@@ -145,21 +131,14 @@ class HierarchicalTopoMap(TopoMap):
     def scale_component(self, component_id, alpha):
         comp_ids = list(self.subsets[component_id])
         points = self.projections[comp_ids,:]
-        
-        t_center = Transform(x=-self.components_center[component_id][0],
-                             y=-self.components_center[component_id][1])
-        self.projections[comp_ids,:] = t_center.translate(self.projections[comp_ids,:])
-        
-        
+
+        self.points_scaled[comp_ids] = True
+
         area = (points[:,0].max() - points[:,0].min())*(points[:,1].max() - points[:,1].min())
         print(f' scaling - initial area: {area:.3f}...', end='')
 
         t_scale = Transform(scalar=alpha)
         self.projections[comp_ids,:] = t_scale.scale(self.projections[comp_ids,:])
-
-        t_center = Transform(x=self.components_center[component_id][0],
-                             y=self.components_center[component_id][1])
-        self.projections[comp_ids,:] = t_center.translate(self.projections[comp_ids,:])
 
         points = self.projections[comp_ids,:]
         area = (points[:,0].max() - points[:,0].min())*(points[:,1].max() - points[:,1].min())
@@ -221,8 +200,6 @@ class HierarchicalTopoMap(TopoMap):
     def run(self):
         self.get_components(max_components=self.max_components,
                             max_dist=self.max_dist)
-        
-        self.get_components_center()
 
         self.get_components_density()
         
