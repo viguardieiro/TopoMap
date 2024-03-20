@@ -147,7 +147,7 @@ class HierarchicalTopoMap(TopoMap):
         return self.projections
     
     def scale_components(self):
-        self.max_density = 1/(self.next_dist**2)
+        self.max_density = 1/(np.pi*self.next_dist**2)
         self.components_alpha = []
 
         print(f'Max_density: {self.max_density:.3f}')
