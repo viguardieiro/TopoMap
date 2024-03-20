@@ -42,13 +42,18 @@ class TopoTree(TopoMap):
                     self.components_info[parent_box_id]['points'] = list(c_a.union(c_b))
                     self.components_info[parent_box_id]['size'] = len(c_a)+len(c_b)
                     self.components_info[parent_box_id]['persistence'] = d
-                    self.components_info[parent_box_id]['created_at'] = i
+                    self.components_info[parent_box_id]['created_at'] = d
                     self.components_info[parent_box_id]['children'] = 2
 
                     a_box_id = self.points_component[i_a]
                     b_box_id = self.points_component[i_b]
                     self.components_info[a_box_id]['parent'] = parent_box_id
+                    self.components_info[a_box_id]['died_at'] = d
+                    self.components_info[a_box_id]['persistence'] = d-self.components_info[a_box_id]['created_at']
                     self.components_info[b_box_id]['parent'] = parent_box_id
+                    self.components_info[b_box_id]['died_at'] = d
+                    self.components_info[b_box_id]['persistence'] = d-self.components_info[b_box_id]['created_at']
+                    
 
                     self.points_component[list(c_a)] = parent_box_id
                     self.points_component[list(c_b)] = parent_box_id
@@ -74,7 +79,7 @@ class TopoTree(TopoMap):
                         self.components_info[new_box_id]['points'] = list(c_a.union(c_b))
                         self.components_info[new_box_id]['size'] = len(c_a)+len(c_b)
                         self.components_info[new_box_id]['persistence'] = d
-                        self.components_info[new_box_id]['created_at'] = i
+                        self.components_info[new_box_id]['created_at'] = d
                         self.components_info[new_box_id]['children'] = 0
 
                         self.points_component[list(c_a)] = new_box_id
