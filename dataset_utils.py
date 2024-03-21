@@ -127,7 +127,14 @@ def Compute_adj_matrix(adj_dict, input = None, input_file ="", turn_sym = False,
 
 def Compute_MST_from_adj(adj_matrix):
     from scipy.sparse.csgraph import  minimum_spanning_tree
-    MST = minimum_spanning_tree(adj_matrix)
+    from scipy.sparse import issparse
+    is_sparse = issparse(adj_matrix)
+    if(is_sparse):
+        adj_matrix.data += 1
+        MST = minimum_spanning_tree(adj_matrix)
+        MST.data -= 1
+    else:
+        MST = minimum_spanning_tree(adj_matrix)
     return MST
 
 
