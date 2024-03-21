@@ -89,11 +89,12 @@ def find_angle(segment:np.ndarray):
     return cos, sin
 
 class Transform():
-    def __init__(self, x=0, y=0, sin=0, cos=1) -> None:
+    def __init__(self, x=0, y=0, sin=0, cos=1, scalar=1) -> None:
         self.x = x
         self.y = y
         self.sin = sin
         self.cos = cos
+        self.scalar = scalar
 
     def translate(self, points:np.ndarray) -> np.ndarray:
         trans_points = np.zeros(shape=(len(points),2))
@@ -105,6 +106,10 @@ class Transform():
         rot_points[:,0] = points[:,0] * self.cos - points[:,1] * self.sin
         rot_points[:,1] = points[:,0] * self.sin + points[:,1] * self.cos
         return rot_points
+    
+    def scale(self, points:np.ndarray) -> np.ndarray:
+        sca_points = self.scalar * points
+        return sca_points
 
     def transform(self, points:np.ndarray) -> np.ndarray:
         transform_points = np.zeros(shape=(len(points),2))

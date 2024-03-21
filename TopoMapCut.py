@@ -1,5 +1,4 @@
 import numpy as np 
-
 from scipy.cluster.hierarchy import DisjointSet
 
 from utils import Transform
@@ -38,6 +37,7 @@ class TopoMapCut(TopoMap):
         self.components_points = None
         self.outlier_comps_i = []
         self.outlier_comps = []
+        self.point_comp_persistence = np.zeros(shape=self.n, dtype=np.float32)
 
         self.proj_subsets = np.zeros(shape=(self.n, 2), dtype=np.float32)
         self.n_components_non_single = []
@@ -75,6 +75,16 @@ class TopoMapCut(TopoMap):
                 n_comp += 1
         return n_comp
     
+    def get_components_persistance(self):
+        self.components_persistence = []
+
+        for j in range(len(self.subsets)):
+            point_j = next(iter(self.subsets[j])) # Get one point from the component
+            persistence_j = self.point_comp_persistence[point_j]
+            self.components_persistence.append(persistence_j)
+
+        return self.components_persistence
+    
     def get_components(self, max_components=-1, 
                        max_dist=-1):
 
@@ -92,6 +102,9 @@ class TopoMapCut(TopoMap):
                 print(f'[INFO] Max components hit. # components: {len(self.components.subsets())} | Max_components: {max_components}')
                 break
             
+            self.point_comp_persistence[i_a] = d
+            self.point_comp_persistence[i_b] = d
+
             # Merge components 
             self.components.merge(i_a, i_b)
 
@@ -104,6 +117,7 @@ class TopoMapCut(TopoMap):
         self.subsets = self.components.subsets()
         self.points_component = self.get_component_of_points()
         self.components_points = self.get_points_of_components()
+        self.components_persistence = self.get_components_persistence()
 
         return self.components
     
@@ -229,6 +243,8 @@ class TopoMapCutInv(TopoMap):
         self.components_range_left = None
         self.components_range_right = None
         self.components_proj = None
+        self.biggest_comp = None
+        self.point_comp_persistence = np.zeros(shape=self.n, dtype=np.float32)
 
     def get_component_of_points(self):
         if self.subsets is None:
@@ -263,6 +279,16 @@ class TopoMapCutInv(TopoMap):
                 n_comp += 1
         return n_comp
     
+    def get_components_persistance(self):
+        self.components_persistence = []
+
+        for j in range(len(self.subsets)):
+            point_j = next(iter(self.subsets[j])) # Get one point from the component
+            persistence_j = self.point_comp_persistence[point_j]
+            self.components_persistence.append(persistence_j)
+
+        return self.components_persistence
+    
     def get_components(self, max_components=-1, 
                        max_dist=-1):
 
@@ -293,6 +319,9 @@ class TopoMapCutInv(TopoMap):
             # Translate components
             proj_c_a = self.translate_component(proj_c_a, edge_t, to_point=[0,0])
             proj_c_b = self.translate_component(proj_c_b, edge_b, to_point=[0,d])
+
+            self.point_comp_persistence[i_a] = d
+            self.point_comp_persistence[i_b] = d
             
             # Merge components 
             self.components.merge(i_a, i_b)
@@ -307,6 +336,7 @@ class TopoMapCutInv(TopoMap):
         self.subsets = self.components.subsets()
         self.points_component = self.get_component_of_points()
         self.components_points = self.get_points_of_components()
+        self.components_persistence = self.get_components_persistance()
 
         return self.components
     
@@ -417,7 +447,80 @@ class TopoMapCutInv(TopoMap):
 
         return self.projections
     
-    def run(self):
+    def find_scale_two_components(self, comp_a, comp_b):
+        
+        radious_a = max([self.components_range_bottom[comp_a],
+                         self.components_range_top[comp_a],
+                         self.components_range_left[comp_a],
+                         self.components_range_right[comp_a]])
+
+        origin = self.components_proj[comp_a]
+        center_b = self.components_proj[comp_b]
+
+        ref_b = self.components_proj[comp_b].copy()
+        if center_b[0] <= origin[0]:
+            ref_b[0] = center_b[0] + self.components_range_right[comp_b]
+        else:
+            ref_b[0] = center_b[0] - self.components_range_left[comp_b]
+        if center_b[1] <= origin[1]:
+            ref_b[1] = center_b[1] + self.components_range_top[comp_b]
+        else:
+            ref_b[1] = center_b[1] - self.components_range_bottom[comp_b]
+
+        ref_b = ref_b - origin
+
+        scale = radious_a/np.linalg.norm(ref_b)
+
+        return scale
+
+    def find_scale(self, n_big_components=5):
+        areas = [((self.components_range_top[i]+self.components_range_bottom[i])*
+                  (self.components_range_left[i]+self.components_range_right[i])) 
+                 for i in range(len(self.subsets))]
+
+        biggest_comp = np.argmax(areas)
+        self.biggest_comp = biggest_comp
+        biggest_n = [areas.index(x) for x in sorted(areas, reverse=True)[1:n_big_components]]
+
+        scale = 0
+        for j in biggest_n:
+            if areas[j] == 0:
+                break
+
+            scale_j = self.find_scale_two_components(biggest_comp, j)
+            scale = max([scale, scale_j])
+
+        return scale
+    
+    def join_components_scale(self, n_big_components=5):
+
+        scale = self.find_scale(n_big_components=n_big_components)
+
+        # Rescale centers
+        t_center = Transform(x=-self.components_proj[self.biggest_comp][0],
+                             y=-self.components_proj[self.biggest_comp][1])
+        t_scale = Transform(scalar=scale)
+        for j in range(len(self.subsets)):
+            self.components_proj[j] = t_center.translate(self.components_proj[j])
+            self.components_proj[j] = t_scale.scale(self.components_proj[j])
+
+        # Position components' points
+        for j in range(len(self.subsets)):
+
+            # Translate projections of this component to match the center's projection
+            comp_ids = list(self.subsets[j])
+
+            proj_center = np.average(self.projections[comp_ids,:], axis=0)
+
+            comp_center = self.components_proj[j]
+
+            t_proj = Transform(x=comp_center[0]-proj_center[0],
+                               y=comp_center[1]-proj_center[1])
+            self.projections[comp_ids,:] = t_proj.translate(self.projections[comp_ids,:])
+
+        return self.projections
+    
+    def run(self, scale=False, n_big_components=5):
         self.get_components(max_components=self.max_components,
                             max_dist=self.max_dist)
         
@@ -427,7 +530,10 @@ class TopoMapCutInv(TopoMap):
 
         self.get_component_ranges()
         
-        self.join_components()
+        if not scale:
+            self.join_components()
+        else:
+            self.join_components_scale(n_big_components=len(self.subsets))
 
         return self.projections
     
