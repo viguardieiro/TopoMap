@@ -7,24 +7,30 @@ class AuxHull():
         self.points = points
         self.simplices = simplices
 
-def get_hull(points:np.ndarray):
+def get_hull(points:np.ndarray,aligned_points = False):
     if len(points) == 1:
         hull = AuxHull(points=points,
                        simplices=np.array([[0,0]]))
     elif len(points) == 2:
         hull = AuxHull(points=points,
                        simplices=np.array([[0,1], [1,0]]))
+    elif aligned_points:
+        print("aligned points")
+        print( points)
+        simplices = [[i,(i+1)%len(points)] for i in range(len(points))]
+        hull = AuxHull(points = points,
+                       simplices = np.array(simplices))
     else:
         hull = ConvexHull(points)
-
+        
     return hull
 
 def distance_segment_point(segment, p):
     a, b = segment
     
-    if all(a == p) or all(b == p):
+    if np.array_equal(a,p) or np.array_equal(b, p):
         return 0
-    if all(a == b):
+    if np.array_equal(a,b):
         return norm(a-p)
     else:
         proj_p_ab = np.dot((p-a), (b-a))
@@ -129,3 +135,37 @@ def fix_rotation(segment:np.ndarray,
             new_points = t.rotate(new_points)
 
     return new_points
+
+def check_3_aligned_points(p0,p1,p2,tol=1e-12):
+    x1, y1 = p1[0] - p0[0], p1[1] - p0[1]
+    x2, y2 = p2[0] - p0[0], p2[1] - p0[1]
+    return abs(x1 * y2 - x2 * y1) < tol
+
+
+def check_aligned_points(points:np.ndarray):
+    '''
+    Check if all points are alligned 
+    '''
+    if(len(points)<3):
+        return True
+
+    p0 = points[0,:]
+    p1 = points[1,:]
+    p2 = points[2,:]
+    all_colinear = check_3_aligned_points(p0,p1,p2)
+    if(not all_colinear):
+        return False
+    else:
+        for i in range(len(points) - 2):
+            p0 = points[i,:]
+            p1 = points[i+1,:]
+            p2 = points[i+2,:]
+            aux_colinear = check_3_aligned_points(p0,p1,p2)
+            if(not aux_colinear):
+                return False
+        return True
+
+
+    
+
+

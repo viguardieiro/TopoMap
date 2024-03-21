@@ -122,7 +122,6 @@ def Compute_adj_matrix(adj_dict, input = None, input_file ="", turn_sym = False,
     if(drop_zeros):
         sparse_matrix.eliminate_zeros()      
     return sparse_matrix
-
      
 
 
