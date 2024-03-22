@@ -1,6 +1,7 @@
 import numpy as np 
 from numpy.linalg import norm
 from scipy.spatial import ConvexHull
+import mlpack
 
 class AuxHull():
     def __init__(self, points, simplices):
@@ -172,5 +173,18 @@ def check_aligned_points(points:np.ndarray):
 
 
     
+def compute_mst_mlpack(points):
+    d = mlpack.emst(input_ = points)
+    d = d["output"]
+    mst = np.array([[int(d[i,0]),int(d[i,1]),d[i,2]] for i in range(len(d))],dtype='O')
+    return  mst
 
+def compute_mst_ann(points, index, drop_zeros):
+    mst = index.get_mst(points,drop_zeros = drop_zeros)
+    mst = mst.tocoo()
+    rows = mst.row
+    cols = mst.col
+    data = mst.data
+    mst = np.array([[int(rows[i]),int(cols[i]),data[i]] for i in range(len(rows))],dtype='O')
+    return mst
 

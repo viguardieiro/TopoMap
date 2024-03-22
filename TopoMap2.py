@@ -6,21 +6,22 @@ from scipy.cluster.hierarchy import DisjointSet
 
 import networkx as nx
 
-from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotation
+from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotation,compute_mst_ann,compute_mst_mlpack
 
 from dataset_utils import Index
 
 import matplotlib.pyplot as plt
 
 
-class TopoMapANN():
-    def __init__(self, points:np.ndarray, index_path, 
-                 metric='euclidean', drop_zeros = False) -> None:
+class TopoMap2():
+    def __init__(self, points:np.ndarray, index_path = '', 
+                 metric='euclidean', drop_zeros = False, approach = 'mlpack') -> None:
         self.points = points
         self.n = len(points)
         self.metric = metric
+        self.approach = approach
         self.drop_zeros = drop_zeros
-        self.index = self.get_index(index_path)
+        self.index = self._compute_index(index_path)
         self.mst = self._compute_mst()
         self.sorted_edges = self._compute_ordered_edges()
         
@@ -29,17 +30,26 @@ class TopoMapANN():
         self.components = DisjointSet(list(range(self.n)))
 
     def _compute_mst(self):
-        mst = self.index.get_mst(self.points,drop_zeros = self.drop_zeros)
-        mst = mst.tocoo()
-        rows = mst.row
-        cols = mst.col
-        data = mst.data
-        mst = np.array([[int(rows[i]),int(cols[i]),data[i]] for i in range(len(rows))],dtype='O')
+        if(self.approach == 'mlpack'):
+            mst = compute_mst_mlpack(self.points)
+        elif(self.approach == 'ANN'):
+            mst = compute_mst_ann(self.points,self.index,self.drop_zeros)
+        else:
+            print("approach isn't supported, please choose between ANN and mlpack")
         return mst
+      
     
     def _compute_ordered_edges(self):
         sorted_edges = self.mst[self.mst[:, 2].argsort()]
         return sorted_edges
+    
+    def _compute_index(self,index_path):
+        index = None
+        if(self.approach == 'ANN'):
+            if(index_path ==''):
+                print('index is required for ANN')
+            index = Index(index_path)
+        return index
     
     def get_mst(self):
         return self.mst
@@ -47,9 +57,8 @@ class TopoMapANN():
     def get_sorted_edges(self):
         return self.sorted_edges
     
-    def get_index(self,index_path):
-        index = Index(index_path)
-        return index
+    def get_index(self):
+        return self.index
 
 
     def rotate_component(self, 
