@@ -7,13 +7,17 @@ class AuxHull():
         self.points = points
         self.simplices = simplices
 
-def get_hull(points:np.ndarray):
+def get_hull(points:np.ndarray, aligned_points = False):
     if len(points) == 1:
         hull = AuxHull(points=points,
                        simplices=np.array([[0,0]]))
     elif len(points) == 2:
         hull = AuxHull(points=points,
                        simplices=np.array([[0,1], [1,0]]))
+    elif aligned_points:
+        simplices = [[i,(i+1)%len(points)] for i in range(len(points))]
+        hull = AuxHull(points = points,
+                       simplices = np.array(simplices))
     else:
         hull = ConvexHull(points)
 
@@ -22,9 +26,9 @@ def get_hull(points:np.ndarray):
 def distance_segment_point(segment, p):
     a, b = segment
     
-    if all(a == p) or all(b == p):
+    if np.array_equal(a,p) or np.array_equal(b, p):
         return 0
-    if all(a == b):
+    if np.array_equal(a,b):
         return norm(a-p)
     else:
         proj_p_ab = np.dot((p-a), (b-a))
