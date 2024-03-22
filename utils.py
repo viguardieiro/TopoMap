@@ -8,7 +8,7 @@ class AuxHull():
         self.points = points
         self.simplices = simplices
 
-def get_hull(points:np.ndarray,aligned_points = False):
+def get_hull(points:np.ndarray, aligned_points = False,aligned_points = False):
     if len(points) == 1:
         hull = AuxHull(points=points,
                        simplices=np.array([[0,0]]))
@@ -16,8 +16,6 @@ def get_hull(points:np.ndarray,aligned_points = False):
         hull = AuxHull(points=points,
                        simplices=np.array([[0,1], [1,0]]))
     elif aligned_points:
-        print("aligned points")
-        print( points)
         simplices = [[i,(i+1)%len(points)] for i in range(len(points))]
         hull = AuxHull(points = points,
                        simplices = np.array(simplices))
