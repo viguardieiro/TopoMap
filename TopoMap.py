@@ -6,46 +6,119 @@ from scipy.cluster.hierarchy import DisjointSet
 
 import networkx as nx
 
-from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotation
+from utils import get_hull, closest_edge_point, find_angle, Transform, fix_rotation,compute_mst_ann,compute_mst_mlpack
+
+from dataset_utils import Index
 
 import matplotlib.pyplot as plt
 
 
 class TopoMap():
-    def __init__(self, points:np.ndarray,
-                 metric='euclidean') -> None:
+    def __init__(self, points:np.ndarray, index_path = '', 
+                 metric='euclidean', drop_zeros = False, approach = 'mlpack') -> None:
         self.points = points
         self.n = len(points)
         self.metric = metric
-
-        self.mst = self.get_mst()
-        self.sorted_edges = self.get_sorted_edges()
+        self.approach = approach
+        self.drop_zeros = drop_zeros
+        self.index = self._compute_index(index_path)
+        self.mst = self._compute_mst()
+        self.sorted_edges = self._compute_ordered_edges()
+        
 
         self.projections = np.zeros(shape=(self.n, 2), dtype=np.float32)
         self.components = DisjointSet(list(range(self.n)))
 
-    def get_mst(self):
-        dists = squareform(pdist(self.points, metric=self.metric))
-        self.mst = minimum_spanning_tree(dists).toarray()
-        return self.mst
+    def _compute_mst(self):
+        if(self.approach == 'mlpack'):
+            mst = compute_mst_mlpack(self.points)
+        elif(self.approach == 'ANN'):
+            mst = compute_mst_ann(self.points,self.index,self.drop_zeros)
+        else:
+            print("approach isn't supported, please choose between ANN and mlpack")
+        return mst
+      
     
+    def _compute_ordered_edges(self):
+        sorted_edges = self.mst[self.mst[:, 2].argsort()]
+        return sorted_edges
+    
+    def _compute_index(self,index_path):
+        index = None
+        if(self.approach == 'ANN'):
+            if(index_path ==''):
+                print('index is required for ANN')
+            index = Index(index_path)
+        return index
+    
+    def get_mst(self):
+        return self.mst
+        
     def get_sorted_edges(self):
-        G = nx.from_numpy_array(self.mst)
-        self.sorted_edges = sorted(G.edges(data=True), 
-                                   key=lambda edge: edge[2].get('weight', 1))
         return self.sorted_edges
     
+    def get_index(self):
+        return self.index
+
+
     def rotate_component(self, 
                          component_points:np.ndarray, 
                          ref_point:np.ndarray, 
                          direction='top') -> np.ndarray:
+        #Create Copy of input_elements and after put it back
+                
+        unique_points = np.unique(component_points, axis=0)
+
         
-        if len(component_points) == 1:
-            return component_points, [0,0]
+        original_repeated_points = component_points.copy()
+        # repeated_componente_points = component_points.copy()
         
-        hull = get_hull(component_points)
+        component_points = unique_points.copy()
+        if len(unique_points) == 1:
+            return original_repeated_points, [0,0]
+        
+        # if(check_aligned_points(component_points)):
+        #     #O(n)
+        #     #All points aligned
+        #     hull = get_hull(component_points,aligned_points = True)
+        # else:
+        try:
+            hull = get_hull(component_points)
+        except Exception as e:
+            error_message = str(e)
+            error_type = error_message[0:6]
+            print(error_type)
+            hull = get_hull(component_points,aligned_points=True)
+
+        # try:
+        #     repeted_hull = get_hull(repeated_componente_points)
+        # except Exception as e:
+        #     error_message = str(e)
+        #     error_type = error_message[0:6]
+        #     # print(error_type)
+        #     repeted_hull = get_hull(repeated_componente_points,aligned_points=True)
+        
+
+
+        
 
         closest_edge, edge_i = closest_edge_point(hull, ref_point)
+       
+
+        # repeated_closest_edge, repeated_edge_i = closest_edge_point(repeted_hull, ref_point)
+        # # print("using repeated:", repeated_closest_edge, distance_segment_point(repeated_closest_edge,ref_point))
+        # # print("-----------")
+        # if(not np.array_equal(closest_edge,repeated_closest_edge)  ):
+        #      #checking if change the order solve
+        #      if ( not ( np.array_equal(closest_edge[0], repeated_closest_edge[1] ) and np.array_equal(closest_edge[1], repeated_closest_edge[0])) ):
+        #         #checking if they have the same distance, what can happen
+        #         if(distance_segment_point(closest_edge,ref_point ) !=  distance_segment_point(repeated_closest_edge,ref_point)):
+        #             print("not equal")
+        #             print(repeated_componente_points)
+        #             print("closest edge to", ref_point, ":",closest_edge,distance_segment_point(closest_edge,ref_point )) 
+        #             print("using repeated:", repeated_closest_edge, distance_segment_point(repeated_closest_edge,ref_point))
+        
+        
         
         t = Transform()
         t.cos, t.sin = find_angle(closest_edge)
@@ -54,8 +127,55 @@ class TopoMap():
         component_points = fix_rotation(component_points[edge_i], 
                                         component_points, 
                                         direction=direction)
+        
+        if(len(unique_points) == len(original_repeated_points)):
+            #Case where there are no repeated points
+            return component_points, edge_i
+        
+        #Case where there are repeated points
+        #Apply the same transformation to all points 
+        transformed_repeated_points = [0]*len(original_repeated_points)
+        map_original_transformed = {str(k):v for k, v in zip(unique_points, component_points)}
+        # for i in range(len(unique_points)):
+        #     #O(n)
+        #     key = str(unique_points[i])
+        #     value = component_points[i]
+        #     if(key in map_original_transformed.keys()):
+        #         continue
+        #     else:
+        #         map_original_transformed[key] = value
+        
+        
+        for i in range(len(original_repeated_points)):
+            #O(n)
+            key = str(original_repeated_points[i])
+            transformed_repeated_points[i] = map_original_transformed[key]
+        transformed_repeated_points = np.array(transformed_repeated_points)
 
-        return component_points, edge_i
+        #transforming the edge to previous correspondence
+        b_edge = edge_i[0]
+        e_edge =edge_i[1]
+        point_b_edge = unique_points[b_edge,:]
+        point_e_edge = unique_points[e_edge,:]
+        edge = [0,0]
+        for i in range(len(original_repeated_points)):
+            point = original_repeated_points[i]
+            if(np.array_equal(point_b_edge,point)):
+                edge[0] = i
+                break
+
+        for i in range(len(original_repeated_points)):
+            point = original_repeated_points[i]
+            if(np.array_equal(point_e_edge,point)):
+                edge[1] = i
+                break
+
+        
+        
+        
+        
+
+        return transformed_repeated_points, edge
     
     def translate_component(self, 
                             component_points:np.ndarray, 
@@ -169,7 +289,7 @@ class TopoMap():
             p_a, p_b = self.projections[i_a,:], self.projections[i_b,:]
 
             # Distance between points
-            d = self.sorted_edges[i][2]['weight']
+            d = self.sorted_edges[i][2]
             
             # Get components the points belong to
             c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)
