@@ -71,17 +71,12 @@ class TopoMap():
 
         
         original_repeated_points = component_points.copy()
-        # repeated_componente_points = component_points.copy()
         
         component_points = unique_points.copy()
         if len(unique_points) == 1:
             return original_repeated_points, [0,0]
         
-        # if(check_aligned_points(component_points)):
-        #     #O(n)
-        #     #All points aligned
-        #     hull = get_hull(component_points,aligned_points = True)
-        # else:
+        
         try:
             hull = get_hull(component_points)
         except Exception as e:
@@ -90,13 +85,7 @@ class TopoMap():
             print(error_type)
             hull = get_hull(component_points,aligned_points=True)
 
-        # try:
-        #     repeted_hull = get_hull(repeated_componente_points)
-        # except Exception as e:
-        #     error_message = str(e)
-        #     error_type = error_message[0:6]
-        #     # print(error_type)
-        #     repeted_hull = get_hull(repeated_componente_points,aligned_points=True)
+        
         
 
 
@@ -105,18 +94,7 @@ class TopoMap():
         closest_edge, edge_i = closest_edge_point(hull, ref_point)
        
 
-        # repeated_closest_edge, repeated_edge_i = closest_edge_point(repeted_hull, ref_point)
-        # # print("using repeated:", repeated_closest_edge, distance_segment_point(repeated_closest_edge,ref_point))
-        # # print("-----------")
-        # if(not np.array_equal(closest_edge,repeated_closest_edge)  ):
-        #      #checking if change the order solve
-        #      if ( not ( np.array_equal(closest_edge[0], repeated_closest_edge[1] ) and np.array_equal(closest_edge[1], repeated_closest_edge[0])) ):
-        #         #checking if they have the same distance, what can happen
-        #         if(distance_segment_point(closest_edge,ref_point ) !=  distance_segment_point(repeated_closest_edge,ref_point)):
-        #             print("not equal")
-        #             print(repeated_componente_points)
-        #             print("closest edge to", ref_point, ":",closest_edge,distance_segment_point(closest_edge,ref_point )) 
-        #             print("using repeated:", repeated_closest_edge, distance_segment_point(repeated_closest_edge,ref_point))
+        
         
         
         
@@ -136,14 +114,7 @@ class TopoMap():
         #Apply the same transformation to all points 
         transformed_repeated_points = [0]*len(original_repeated_points)
         map_original_transformed = {str(k):v for k, v in zip(unique_points, component_points)}
-        # for i in range(len(unique_points)):
-        #     #O(n)
-        #     key = str(unique_points[i])
-        #     value = component_points[i]
-        #     if(key in map_original_transformed.keys()):
-        #         continue
-        #     else:
-        #         map_original_transformed[key] = value
+    
         
         
         for i in range(len(original_repeated_points)):
