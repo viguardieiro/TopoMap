@@ -69,21 +69,40 @@ class TopoMap():
                 
         unique_points = np.unique(component_points, axis=0)
 
-        
-        original_repeated_points = component_points.copy()
-        
-        component_points = unique_points.copy()
+            
         if len(unique_points) == 1:
-            return original_repeated_points, [0,0]
+            return component_points, [0,0]
+        
+
         
         
         try:
             hull = get_hull(component_points)
+            closest_edge, edge_i = closest_edge_point(hull, ref_point)
         except Exception as e:
+            #aligned points
             error_message = str(e)
             error_type = error_message[0:6]
-            print(error_type)
-            hull = get_hull(component_points,aligned_points=True)
+            if(error_type != "QH6013"):
+                print('new_error_type: ',error_type)
+            # hull = get_hull(component_points,aligned_points=True)
+            list_idx_ref_point = np.flatnonzero((ref_point==component_points).all(1))
+            if(len(list_idx_ref_point) == 0):
+                print('ref point not in component point')
+                print(component_points)
+                print(ref_point)
+            idx_ref_point = list_idx_ref_point[0]
+
+            
+            
+
+            #Pick any point that isn't ref_point
+            for i in range(len(component_points)):
+                if(i not in list_idx_ref_point):
+                    other_point = component_points[i,:]
+                
+            closest_edge = (ref_point, other_point)
+            edge_i = [idx_ref_point,idx_ref_point]
 
         
         
@@ -91,7 +110,7 @@ class TopoMap():
 
         
 
-        closest_edge, edge_i = closest_edge_point(hull, ref_point)
+        
        
 
         
@@ -106,47 +125,47 @@ class TopoMap():
                                         component_points, 
                                         direction=direction)
         
-        if(len(unique_points) == len(original_repeated_points)):
+        # if(len(unique_points) == len(original_repeated_points)):
             #Case where there are no repeated points
-            return component_points, edge_i
+        return component_points, edge_i
         
-        #Case where there are repeated points
-        #Apply the same transformation to all points 
-        transformed_repeated_points = [0]*len(original_repeated_points)
-        map_original_transformed = {str(k):v for k, v in zip(unique_points, component_points)}
+        # #Case where there are repeated points
+        # #Apply the same transformation to all points 
+        # transformed_repeated_points = [0]*len(original_repeated_points)
+        # map_original_transformed = {str(k):v for k, v in zip(unique_points, component_points)}
     
         
         
-        for i in range(len(original_repeated_points)):
-            #O(n)
-            key = str(original_repeated_points[i])
-            transformed_repeated_points[i] = map_original_transformed[key]
-        transformed_repeated_points = np.array(transformed_repeated_points)
+        # for i in range(len(original_repeated_points)):
+        #     #O(n)
+        #     key = str(original_repeated_points[i])
+        #     transformed_repeated_points[i] = map_original_transformed[key]
+        # transformed_repeated_points = np.array(transformed_repeated_points)
 
-        #transforming the edge to previous correspondence
-        b_edge = edge_i[0]
-        e_edge =edge_i[1]
-        point_b_edge = unique_points[b_edge,:]
-        point_e_edge = unique_points[e_edge,:]
-        edge = [0,0]
-        for i in range(len(original_repeated_points)):
-            point = original_repeated_points[i]
-            if(np.array_equal(point_b_edge,point)):
-                edge[0] = i
-                break
+        # #transforming the edge to previous correspondence
+        # b_edge = edge_i[0]
+        # e_edge =edge_i[1]
+        # point_b_edge = unique_points[b_edge,:]
+        # point_e_edge = unique_points[e_edge,:]
+        # edge = [0,0]
+        # for i in range(len(original_repeated_points)):
+        #     point = original_repeated_points[i]
+        #     if(np.array_equal(point_b_edge,point)):
+        #         edge[0] = i
+        #         break
 
-        for i in range(len(original_repeated_points)):
-            point = original_repeated_points[i]
-            if(np.array_equal(point_e_edge,point)):
-                edge[1] = i
-                break
+        # for i in range(len(original_repeated_points)):
+        #     point = original_repeated_points[i]
+        #     if(np.array_equal(point_e_edge,point)):
+        #         edge[1] = i
+        #         break
 
         
         
         
         
 
-        return transformed_repeated_points, edge
+        # return transformed_repeated_points, edge
     
     def translate_component(self, 
                             component_points:np.ndarray, 

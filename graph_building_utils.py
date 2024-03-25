@@ -2,29 +2,9 @@ import networkx as nx
 import scipy
 
 
-def build_graph_mst_scipy(MST):
+def build_graph_mst(MST):
     '''
-    Build nx graph from scipy MST
-    '''
-    if not isinstance(MST, scipy.sparse.coo_matrix):
-        MST = MST.tocoo()
-    G = nx.Graph()
-    n_nodes = len(MST.data) + 1
-    G.add_nodes_from(range(n_nodes))
-    rows = MST.row
-    columns = MST.col
-    data = MST.data
-    edges = [0]*len(rows)
-    for i in range(len(rows)):
-        edges[i] = ((rows[i],columns[i]),data[i])
-    G.add_edges_from(edges)
-
-    return G
-
-
-def building_graph_mst_mlpack(MST):
-    '''
-    Build nx graph from mlpack emst
+    Build nx graph from emst
     '''
     G = nx.Graph()
     n_nodes = len(MST) + 1
@@ -32,8 +12,22 @@ def building_graph_mst_mlpack(MST):
 
     edges = [0]*len(MST)
     for i in range(len(MST)):
-        edges[i] = ((int(MST[i,0]),int(MST[i,1])),MST[i,2])
-    G.add_edges_from(edges)
+        edges[i] = (int(MST[i,0]),int(MST[i,1]),MST[i,2])
+    G.add_weighted_edges_from(edges)
 
     return G
+
+def compute_difference_graphs(G1,G2):
+    '''
+    Compute statistics about two graphs MST graphs G1 and G2
+    '''
+    n_equal_edges = 0
+    w_equal_edges = 0
+    for edge in G1.edges.data("weight"):
+        if(edge[1] in G2[edge[0]]):
+            n_equal_edges+=1
+            w_equal_edges += edge[2]
+    return n_equal_edges, w_equal_edges
+    
+        
 
