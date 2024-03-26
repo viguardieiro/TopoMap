@@ -84,8 +84,8 @@ def MST_test_topology(data_path, Index_path,dataset_name, save_msts = False):
     percentual_weight_error = abs(total_weight-approx_weight)/total_weight
 
     if(save_msts):
-        mst_filename = f'./out/mst_{dataset_name}.npy'
-        vamana_mst_filename = f'./out/Vamana_mst_{dataset_name}.npy'
+        mst_filename = f'./msts/mst_{dataset_name}.npy'
+        vamana_mst_filename = f'./msts/Vamana_mst_{dataset_name}.npy'
         silentremove(mst_filename)
         silentremove(vamana_mst_filename)
         np.save(mst_filename,mst_mlpack, allow_pickle=True)
