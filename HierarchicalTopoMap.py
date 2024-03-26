@@ -114,13 +114,11 @@ class HierarchicalTopoMap(TopoMap):
                 self.components_info[a_box_id]['parent'] = parent_box_id
                 self.components_info[a_box_id]['died_at'] = d
                 self.components_info[a_box_id]['persistence'] = d-self.components_info[a_box_id]['created_at']
-                self.components_info[a_box_id]['hull'] = get_hull(self.projections[list(c_a),:])
 
                 b_box_id = self.points_component[i_b]
                 self.components_info[b_box_id]['parent'] = parent_box_id
                 self.components_info[b_box_id]['died_at'] = d
                 self.components_info[b_box_id]['persistence'] = d-self.components_info[b_box_id]['created_at']
-                self.components_info[b_box_id]['hull'] = get_hull(self.projections[list(c_b),:])
                 
                 self.points_component[list(c_a)] = parent_box_id
                 self.points_component[list(c_b)] = parent_box_id
@@ -222,6 +220,14 @@ class HierarchicalTopoMap(TopoMap):
 
         return self.components
 
+    def get_scaled_hulls(self):
+        for c in self.components_to_scale:
+            c_points_id = self.components_info[c]['points']
+            c_hull = get_hull(self.projections[list(c_points_id),:])
+            self.components_info[c]['hull'] = c_hull
+
+        return self.components_info
+
     def run(self):
         if self.mst is None:
             self.mst = self.get_mst()
@@ -237,6 +243,8 @@ class HierarchicalTopoMap(TopoMap):
             self.components_to_scale = self.get_component_to_scale()
 
         self.get_components()
+
+        self.get_scaled_hulls()
 
         return self.projections
     
