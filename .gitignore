@@ -167,6 +167,5 @@ local/
 #.idea/
 
 #data
-data/
-fvec_datasets/
+data
 

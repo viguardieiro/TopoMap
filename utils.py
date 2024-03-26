@@ -140,49 +140,43 @@ def fix_rotation(segment:np.ndarray,
 
     return new_points
 
-def check_3_aligned_points(p0,p1,p2,tol=1e-12):
-    x1, y1 = p1[0] - p0[0], p1[1] - p0[1]
-    x2, y2 = p2[0] - p0[0], p2[1] - p0[1]
-    return abs(x1 * y2 - x2 * y1) < tol
-
-
-def check_aligned_points(points:np.ndarray):
-    '''
-    Check if all points are alligned 
-    '''
-    if(len(points)<3):
-        return True
-
-    p0 = points[0,:]
-    p1 = points[1,:]
-    p2 = points[2,:]
-    all_colinear = check_3_aligned_points(p0,p1,p2)
-    if(not all_colinear):
-        return False
-    else:
-        for i in range(len(points) - 2):
-            p0 = points[i,:]
-            p1 = points[i+1,:]
-            p2 = points[i+2,:]
-            aux_colinear = check_3_aligned_points(p0,p1,p2)
-            if(not aux_colinear):
-                return False
-        return True
 
 
     
-def compute_mst_mlpack(points):
+def compute_mst_mlpack(points, compute_time = False):
+    import time
+    start = time.time()
     d = mlpack.emst(input_ = points)
+    end = time.time()
+    total_time = end- start
     d = d["output"]
     mst = np.array([[int(d[i,0]),int(d[i,1]),d[i,2]] for i in range(len(d))],dtype='O')
-    return  mst
+    if (compute_time):
+        output = (mst,total_time)
+    else:
+        output = mst
+    return output
 
-def compute_mst_ann(points, index, drop_zeros):
+def compute_mst_ann(points, index, drop_zeros = False, compute_time= False):
+    import time 
+    start = time.time()
     mst = index.get_mst(points,drop_zeros = drop_zeros)
+    end = time.time()
+    total_time = end - start
     mst = mst.tocoo()
     rows = mst.row
     cols = mst.col
     data = mst.data
     mst = np.array([[int(rows[i]),int(cols[i]),data[i]] for i in range(len(rows))],dtype='O')
-    return mst
+    if (compute_time):
+        output = (mst,total_time)
+    else:
+        output = mst
+    return output
+
+
+
+
+        
+
 
