@@ -121,7 +121,7 @@ class TopoTree(TopoMap):
 
         return self.get_components()
     
-def plot_hierarchical_treemap(df_comp, color='persistence'):
+def plot_hierarchical_treemap(df_comp, color='died_at'):
     fig = go.Figure(go.Treemap(
             labels=df_comp['id'],
             parents=df_comp['parent'],
@@ -129,10 +129,10 @@ def plot_hierarchical_treemap(df_comp, color='persistence'):
             branchvalues='total',
             marker=dict(
                 colors=df_comp[color],
-                colorscale='Blues',
+                colorscale='Teal',
                 showscale=True,
                 colorbar=dict(
-                    title=color
+                    title='Persistence'
                 )),
             hovertemplate='<b>Component #%{label} </b> <br> Points: %{value}<br> Persistence: %{color:.2f}<br> Parent: #%{parent}',
             name='',
@@ -143,6 +143,6 @@ def plot_hierarchical_treemap(df_comp, color='persistence'):
     fig.update_layout(margin = dict(t=50, l=25, r=25, b=25),
                     title='TopoTree',
                     height=500,
-                    width=1000)
+                    width=800)
     
     return fig
