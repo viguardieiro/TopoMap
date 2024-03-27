@@ -17,8 +17,13 @@ class HierarchicalTopoMap(TopoMap):
                  selection_method='layers_down',
                  layers_down=3,
                  n_components=8,
+                 min_persistence_selection=0.1,
+                 min_size_selection=0,
+                 max_persistence_selection=0.1,
+                 max_size_selection=0,
                  verbose=True
                  ) -> None:
+        
         self.verbose = verbose
 
         self.points = points
@@ -34,6 +39,10 @@ class HierarchicalTopoMap(TopoMap):
         self.selection_method = selection_method
         self.layers_down = layers_down
         self.n_components = n_components
+        self.min_persistence_selection = min_persistence_selection
+        self.min_size_selection = min_size_selection
+        self.max_persistence_selection = max_persistence_selection
+        self.max_size_selection = max_size_selection
 
         self.mst = None
         self.sorted_edges = None
@@ -60,7 +69,11 @@ class HierarchicalTopoMap(TopoMap):
                                df_comp=None, 
                                selection_method='layers_down',
                                layers_down=3,
-                               n_components=8):
+                               n_components=8,
+                               min_persistence=0.1,
+                               min_size=0,
+                               max_persistence=0.1,
+                               max_size=0):
         if df_comp is None:
             topotree = TopoTree(self.points, 
                                 min_box_size=self.min_points_component)
@@ -105,14 +118,54 @@ class HierarchicalTopoMap(TopoMap):
                 if len(parents) == 0:
                     break
 
-        elif selection_method == 'min_persistence':
-            pass
+        elif selection_method == 'min_persistence' or selection_method == 'min_size':
+            if selection_method == 'min_persistence':
+                feature = 'died_at'
+                min_value = min_persistence
+            else:
+                feature = 'size'
+                min_value = min_size
 
-        elif selection_method == 'min_size':
-            pass
+            parents = [df_comp.shape[0]-1]
+
+            while len(parents) > 0:
+                parents_aux = parents.copy()
+                for parent in parents:
+                    parents_aux.remove(parent)
+                    if len(childs_map[parent]) > 0:
+                        added_child = False
+                        for child in childs_map[parent]:
+                            if df_comp.loc[child,feature] > min_value:
+                                parents_aux.append(child)
+                                added_child = True
+                        if not added_child:
+                            selected_comps.append(parent)
+                    else:
+                        selected_comps.append(parent)
+                parents = parents_aux
+
+        elif selection_method == 'max_persistence' or selection_method == 'max_size':
+            if selection_method == 'max_persistence':
+                feature = 'died_at'
+                max_value = max_persistence
+            else:
+                feature = 'size'
+                max_value = max_size
+
+            parents = [df_comp.shape[0]-1]
+
+            while len(parents) > 0:
+                parents_aux = parents.copy()
+                for parent in parents:
+                    parents_aux.remove(parent)
+                    if df_comp.loc[parent,feature] < max_value:
+                        selected_comps.append(parent)
+                    else:
+                        parents_aux.extend(childs_map[parent])
+                parents = parents_aux
         
         else:
-            print("[ERROR] Selection method not recognized. Options: 'layers_down', 'n_components'")
+            print("[ERROR] Selection method not recognized. Options: 'layers_down', 'n_components', 'min_persistence', 'min_size', 'max_persistence', 'max_size'")
             return False
         
         self.components_to_scale = selected_comps
@@ -318,7 +371,12 @@ class HierarchicalTopoMap(TopoMap):
 
         if len(self.components_to_scale) == 0:
             self.components_to_scale = self.get_component_to_scale(selection_method=self.selection_method,
-                                                                   layers_down=self.layers_down)
+                                                                   layers_down=self.layers_down,
+                                                                   min_persistence=self.min_persistence_selection,
+                                                                   min_size=self.min_size_selection,
+                                                                   max_persistence=self.max_persistence_selection,
+                                                                   max_size=self.max_size_selection
+                                                                   )
 
         self.get_components()
 
