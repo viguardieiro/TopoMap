@@ -8,16 +8,19 @@ import plotly.graph_objects as go
 class TopoTree(TopoMap):
     def __init__(self, points:np.ndarray,
                  metric='euclidean',
-                 min_box_size=10,
+                 min_box_size=0,
                  ) -> None:
         self.points = points
         self.n = len(points)
         self.metric = metric
 
-        self.min_box_size = min_box_size
+        if min_box_size == 0:
+            self.min_box_size = 0.01*len(points)
+        else:
+            self.min_box_size = min_box_size
 
-        self.mst = self.get_mst()
-        self.sorted_edges = self.get_sorted_edges()
+        self.mst = None
+        self.sorted_edges = None
 
         self.components = DisjointSet(list(range(self.n)))
         self.points_component = np.array([None for i in range(self.n)])
@@ -55,7 +58,11 @@ class TopoTree(TopoMap):
                 self.components_info[b_box_id]['parent'] = parent_box_id
                 self.components_info[b_box_id]['died_at'] = d
                 self.components_info[b_box_id]['persistence'] = d-self.components_info[b_box_id]['created_at']
-                
+
+                persistence_density_a = self.components_info[a_box_id]['size']/d
+                self.components_info[a_box_id]['persistence_density'] = persistence_density_a
+                persistence_density_b = self.components_info[b_box_id]['size']/d
+                self.components_info[b_box_id]['persistence_density'] = persistence_density_b
 
                 self.points_component[list(c_a)] = parent_box_id
                 self.points_component[list(c_b)] = parent_box_id
@@ -105,7 +112,16 @@ class TopoTree(TopoMap):
 
         return self.components_info
     
-def plot_hierarchical_treemap(df_comp, color='persistence'):
+    def run(self):
+        if self.mst is None:
+            self.mst = self.get_mst()
+
+        if self.sorted_edges is None:
+            self.sorted_edges = self.get_sorted_edges()
+
+        return self.get_components()
+    
+def plot_hierarchical_treemap(df_comp, color='died_at'):
     fig = go.Figure(go.Treemap(
             labels=df_comp['id'],
             parents=df_comp['parent'],
@@ -113,10 +129,10 @@ def plot_hierarchical_treemap(df_comp, color='persistence'):
             branchvalues='total',
             marker=dict(
                 colors=df_comp[color],
-                colorscale='bluyl',
+                colorscale='Teal',
                 showscale=True,
                 colorbar=dict(
-                    title=color
+                    title='Persistence'
                 )),
             hovertemplate='<b>Component #%{label} </b> <br> Points: %{value}<br> Persistence: %{color:.2f}<br> Parent: #%{parent}',
             name='',
@@ -127,6 +143,6 @@ def plot_hierarchical_treemap(df_comp, color='persistence'):
     fig.update_layout(margin = dict(t=50, l=25, r=25, b=25),
                     title='TopoTree',
                     height=500,
-                    width=1000)
+                    width=800)
     
     return fig
