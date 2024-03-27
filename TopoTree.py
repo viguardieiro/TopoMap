@@ -101,7 +101,7 @@ class TopoTree(TopoMap):
             i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
 
             # Distance between points
-            d = self.sorted_edges[i][2]['weight']
+            d = self.sorted_edges[i][2]
 
             # Get components the points belong to
             c_a, c_b = self.components.subset(i_a), self.components.subset(i_b)

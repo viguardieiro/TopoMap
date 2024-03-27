@@ -39,7 +39,7 @@ class HierarchicalTopoMap(TopoMap):
             self.goal_density = 1/(np.pi*max_edge_length**2)
         else:
             if not self.sorted_edges is None:
-                biggest_edge = self.sorted_edges[-1][2]['weight']
+                biggest_edge = self.sorted_edges[-1][2]
                 self.goal_density = 1/(np.pi*biggest_edge**2)
 
     def get_component_to_scale(self):
@@ -177,7 +177,7 @@ class HierarchicalTopoMap(TopoMap):
             i_a, i_b = self.sorted_edges[i][0], self.sorted_edges[i][1]
 
             # Distance between points
-            d = self.sorted_edges[i][2]['weight']
+            d = self.sorted_edges[i][2]
 
             if self.max_edge_length!=-1 and d > self.max_edge_length:
                 print(f'[INFO] Max edge length hit. Distance: {d} | max_edge_length: {self.max_edge_length}')
@@ -236,7 +236,7 @@ class HierarchicalTopoMap(TopoMap):
             self.sorted_edges = self.get_sorted_edges()
 
         if self.goal_density==-1:
-            biggest_edge = self.sorted_edges[-1][2]['weight']
+            biggest_edge = self.sorted_edges[-1][2]
             self.goal_density = 1/(np.pi*biggest_edge**2)
 
         if len(self.components_to_scale) == 0:
