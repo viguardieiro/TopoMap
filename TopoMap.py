@@ -15,11 +15,13 @@ import matplotlib.pyplot as plt
 
 class TopoMap():
     def __init__(self, points:np.ndarray, index_path = '', 
-                 metric='euclidean', drop_zeros = False, approach = 'mlpack') -> None:
+                 metric='euclidean', drop_zeros = False, approach = 'mlpack', load_mst = False, mst_path = '') -> None:
         self.points = points
         self.n = len(points)
         self.metric = metric
         self.approach = approach
+        self.load_mst  = load_mst
+        self.mst_path = mst_path
         self.drop_zeros = drop_zeros
         self.index = self._compute_index(index_path)
         self.mst = self._compute_mst()
@@ -30,7 +32,9 @@ class TopoMap():
         self.components = DisjointSet(list(range(self.n)))
 
     def _compute_mst(self):
-        if(self.approach == 'mlpack'):
+        if(self.load_mst):
+            mst = np.load(self.mst_path,allow_pickle= True)
+        elif(self.approach == 'mlpack'):
             mst = compute_mst_mlpack(self.points)
         elif(self.approach == 'ANN'):
             mst = compute_mst_ann(self.points,self.index,self.drop_zeros)
