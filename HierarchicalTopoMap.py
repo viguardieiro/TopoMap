@@ -20,10 +20,83 @@ class HierarchicalTopoMap(TopoMap):
                  min_persistence_selection=0.1,
                  min_size_selection=0,
                  max_persistence_selection=0.1,
-                 max_size_selection=0,
+                 max_size_selection=1,
                  verbose=True
                  ) -> None:
+        """Generate HierarchicalTopoMap projection of the input data points.
+
+        Parameters
+        ----------
         
+        points : numpy array
+            The high dimensional data points to be projected.
+
+        metric : {'euclidean'}, default='euclidean'
+            Distance metric to compute the MST. Check out TopoMap to see other options.
+
+        min_points_component : int, default=2
+            Minumum number of points for a component to have an assigned box.
+
+        max_edge_length : float, default=-1 (ignore restriction)
+            Optional parameter to control the maximum length for an edge to be processed.
+
+        components_to_scale : list, default=[]
+            List of component ids to be scaled. If it is empty, the method get_component_to_scale 
+            will be used to select the components.
+
+        max_scalar : float, default=20
+            Maximum scalar alpha to scale a component.
+
+        selection_method : {'layers_down', 'n_components', 'min_persistence', 'min_size', \
+                            'max_persistence', 'max_size'}, default='layers_down'
+            Method for selecting the components to be scale. Only used if components_to_scale is empty.
+
+        layers_down : int, default=3
+            Number of layers to go down from the hierarchical tree node to get the components to scale.
+            Only used if components_to_scale is empty and selection_method is 'layers_down'.
+
+        n_components : int, default=8
+            Number of components to select for scaling. The selection starts on the root of the tree
+            and moves towards the leafs until we have selected n_components. If we reach a component
+            wihtout childs, it is added to the list of selected components. Otherwise, we continue
+            processing the component's childs until the end criteria is met.
+            Only used if components_to_scale is empty and selection_method is 'n_components'.
+
+        min_persistence_selection : float, default=0.1
+            Minimum persistence a component must have to be selected. The selection starts on the root 
+            of the tree and moves towards the leafs while the components have persistence above this value. 
+            If we reach a component wihtout childs, it is added to the list of selected components. 
+            If all childs of this component have persistence less then this value, the component
+            is added to the list of selected components. Otherwise, we continue processing the component's 
+            childs until there are no more components to explore.
+            Only used if components_to_scale is empty and selection_method is 'min_persistence'.
+
+        min_size_selection : float, default=0.1
+            Minimum number of points a component must have to be selected. The selection starts on the root 
+            of the tree and moves towards the leafs while the components have size above this value. 
+            If we reach a component wihtout childs, it is added to the list of selected components. 
+            If all childs of this component have size smaller then this value, the component is added to the 
+            list of selected components. Otherwise, we continue processing the component's childs until 
+            there are no more components to explore.
+            Only used if components_to_scale is empty and selection_method is 'min_size'.
+
+        max_persistence_selection : float, default=0.1
+            Maximum persistence a component must have to be selected. The selection starts on the root 
+            of the tree and moves towards the leafs until the components have persistent below this value. 
+            If the component persistence below this value, it is added to the list of selected components. 
+            Otherwise, we continue exploring the component's childs.
+            Only used if components_to_scale is empty and selection_method is 'max_persistence'.
+
+        max_size_selection : float, default=1
+            Maximum number of points a component must have to be selected. The selection starts on the root 
+            of the tree and moves towards the leafs until the components size is below this value. 
+            If the component size below this value, it is added to the list of selected components. 
+            Otherwise, we continue exploring the component's childs.
+            Only used if components_to_scale is empty and selection_method is 'max_size'.
+
+        verbose : bool, default=True
+            Option to print information about the execution.
+        """
         self.verbose = verbose
 
         self.points = points
