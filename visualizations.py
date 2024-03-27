@@ -133,3 +133,29 @@ def plot_topomap_comparison_highlight(proj_original, proj_new,
             )
 
     return fig
+
+def plot_hierarchical_treemap(df_comp, color='died_at'):
+    fig = go.Figure(go.Treemap(
+            labels=df_comp['id'],
+            parents=df_comp['parent'],
+            values=df_comp['size'],
+            branchvalues='total',
+            marker=dict(
+                colors=df_comp[color],
+                colorscale='Teal',
+                showscale=True,
+                colorbar=dict(
+                    title='Persistence'
+                )),
+            hovertemplate='<b>Component #%{label} </b> <br> Points: %{value}<br> Persistence: %{color:.2f}<br> Parent: #%{parent}',
+            name='',
+            maxdepth=-1,
+            )
+        )
+
+    fig.update_layout(margin = dict(t=50, l=25, r=25, b=25),
+                    title='TopoTree',
+                    height=500,
+                    width=800)
+    
+    return fig
