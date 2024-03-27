@@ -1,4 +1,7 @@
 import os, errno
+import networkx as nx
+
+
 
 def silentremove(filename):
     try:
@@ -6,6 +9,36 @@ def silentremove(filename):
     except OSError as e: # this would be "except OSError, e:" before Python 2.6
         if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
             raise # re-raise exception if a different error occurred
+
+
+def build_graph_mst(MST):
+    '''
+    Build nx graph from emst
+    '''
+    G = nx.Graph()
+    n_nodes = len(MST) + 1
+    G.add_nodes_from(range(n_nodes))
+
+    edges = [0]*len(MST)
+    for i in range(len(MST)):
+        edges[i] = (int(MST[i,0]),int(MST[i,1]),MST[i,2])
+    G.add_weighted_edges_from(edges)
+
+    return G
+
+def compute_difference_graphs(G1,G2):
+    '''
+    Compute statistics about two graphs MST graphs G1 and G2
+    '''
+    n_equal_edges = 0
+    w_equal_edges = 0
+    for edge in G1.edges.data("weight"):
+        if(edge[1] in G2[edge[0]]):
+            n_equal_edges+=1
+            w_equal_edges += edge[2]
+    return n_equal_edges, w_equal_edges
+    
+
 
 def plot_persitance_mst_and_dist(mst_ANN, mst_MLpack,dataset_name):
     import gudhi
@@ -54,13 +87,11 @@ def plot_persitance_mst_and_dist(mst_ANN, mst_MLpack,dataset_name):
     return dist
 
 def MST_test_topology(data_path, Index_path,dataset_name, save_msts = False):
-    from graph_building_utils import build_graph_mst, compute_difference_graphs
     from TopoMap import TopoMap
     from dataset_utils import fvecs_read, Index
-    import time
     from utils import compute_mst_mlpack, compute_mst_ann
     import numpy as np
-    import os 
+
 
 
     print("--")
@@ -94,3 +125,9 @@ def MST_test_topology(data_path, Index_path,dataset_name, save_msts = False):
     
 
     return [mlpack_building_time,ANN_building_time,bn_dist,n_equal_edges,n_equal_edges/n_edges,w_equal_edges,w_equal_edges/total_weight, percentual_weight_error]
+
+
+
+
+        
+

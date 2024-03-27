@@ -1,7 +1,4 @@
 import numpy as np 
-
-from scipy.spatial.distance import pdist, squareform
-from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.cluster.hierarchy import DisjointSet
 
 import networkx as nx
