@@ -1,9 +1,11 @@
+import pandas as pd
 import numpy as np 
 from scipy.cluster.hierarchy import DisjointSet
 
 from utils import Transform, get_hull
 
 from TopoMap import TopoMap
+from TopoTree import TopoTree
 
 class HierarchicalTopoMap(TopoMap):
     def __init__(self, points:np.ndarray,
@@ -11,7 +13,14 @@ class HierarchicalTopoMap(TopoMap):
                  min_points_component=2,
                  max_edge_length=-1,
                  components_to_scale=[],
-                 max_scalar=20) -> None:
+                 max_scalar=20,
+                 selection_method='layers_down',
+                 layers_down=3,
+                 n_components=8,
+                 verbose=True
+                 ) -> None:
+        self.verbose = verbose
+
         self.points = points
         self.n = len(points)
         self.metric = metric
@@ -20,6 +29,11 @@ class HierarchicalTopoMap(TopoMap):
         self.max_edge_length = max_edge_length
         self.components_to_scale = components_to_scale
         self.max_scalar = max_scalar
+
+        # Options for get_component_to_scale
+        self.selection_method = selection_method
+        self.layers_down = layers_down
+        self.n_components = n_components
 
         self.mst = None
         self.sorted_edges = None
@@ -42,8 +56,68 @@ class HierarchicalTopoMap(TopoMap):
                 biggest_edge = self.sorted_edges[-1][2]
                 self.goal_density = 1/(np.pi*biggest_edge**2)
 
-    def get_component_to_scale(self):
-        pass
+    def get_component_to_scale(self, 
+                               df_comp=None, 
+                               selection_method='layers_down',
+                               layers_down=3,
+                               n_components=8):
+        if df_comp is None:
+            topotree = TopoTree(self.points, 
+                                min_box_size=self.min_points_component)
+            topotree.mst = self.mst
+            topotree.sorted_edges = self.sorted_edges
+            comp_info = topotree.run()
+
+            df_comp = pd.DataFrame.from_dict(comp_info)
+
+        childs_map = {}
+        for i in range(df_comp.shape[0]):
+            childs_component = df_comp[df_comp['parent']==i].id.to_list()
+            childs_map[i] = childs_component
+
+        selected_comps = []
+
+        if selection_method == 'layers_down':       
+            parents = [df_comp.shape[0]-1]
+            
+            for i in range(layers_down):
+                parents_aux = parents.copy()
+                for parent in parents:
+                    parents_aux.remove(parent)
+                    if len(childs_map[parent]) > 0:
+                        parents_aux.extend(childs_map[parent])
+                    else:
+                        selected_comps.append(parent)
+                parents = parents_aux
+
+        elif selection_method == 'n_components':
+            parents = [df_comp.shape[0]-1]
+
+            while len(selected_comps) < n_components:
+                parents_aux = parents.copy()
+                for parent in parents:
+                    parents_aux.remove(parent)
+                    if len(childs_map[parent]) > 0:
+                        parents_aux.extend(childs_map[parent])
+                    else:
+                        selected_comps.append(parent)
+                parents = parents_aux
+                if len(parents) == 0:
+                    break
+
+        elif selection_method == 'min_persistence':
+            pass
+
+        elif selection_method == 'min_size':
+            pass
+        
+        else:
+            print("[ERROR] Selection method not recognized. Options: 'layers_down', 'n_components'")
+            return False
+        
+        self.components_to_scale = selected_comps
+        return selected_comps
+
 
     def get_component_density(self, component_id):
         comp_ids = self.components_info[component_id]['points']
@@ -68,21 +142,22 @@ class HierarchicalTopoMap(TopoMap):
 
         alpha = min([alpha, self.max_scalar])
 
-        print(f'Scalling component {component_id} - Scale: {alpha}', end='')
-
         comp_ids = self.components_info[component_id]['points']
         self.points_scaled[comp_ids] = True
 
-        points = self.projections[comp_ids,:]
-        area = (points[:,0].max() - points[:,0].min())*(points[:,1].max() - points[:,1].min())
-        print(f' scaling - initial area: {area:.3f}...', end='')
+        if self.verbose:
+            print(f'Scalling component {component_id} - Scale: {alpha}', end='')
+            points = self.projections[comp_ids,:]
+            area = (points[:,0].max() - points[:,0].min())*(points[:,1].max() - points[:,1].min())
+            print(f' scaling - initial area: {area:.3f}...', end='')
 
         t_scale = Transform(scalar=alpha)
         self.projections[comp_ids,:] = t_scale.scale(self.projections[comp_ids,:])
 
-        points = self.projections[comp_ids,:]
-        area = (points[:,0].max() - points[:,0].min())*(points[:,1].max() - points[:,1].min())
-        print(f' final area: {area:.3f}...')
+        if self.verbose:
+            points = self.projections[comp_ids,:]
+            area = (points[:,0].max() - points[:,0].min())*(points[:,1].max() - points[:,1].min())
+            print(f' final area: {area:.3f}.')
 
         return alpha
 
@@ -180,7 +255,8 @@ class HierarchicalTopoMap(TopoMap):
             d = self.sorted_edges[i][2]
 
             if self.max_edge_length!=-1 and d > self.max_edge_length:
-                print(f'[INFO] Max edge length hit. Distance: {d} | max_edge_length: {self.max_edge_length}')
+                if self.verbose:
+                    print(f'[INFO] Max edge length hit. Distance: {d} | max_edge_length: {self.max_edge_length}')
                 self.next_dist = d
                 break
 
@@ -210,7 +286,8 @@ class HierarchicalTopoMap(TopoMap):
             self.projections[list(c_b), :] = proj_c_b
 
         if i == len(self.sorted_edges)-1:
-            print(f'[INFO] Number of edges hit. Edges processed: {i}')
+            if self.verbose:
+                print(f'[INFO] Number of edges hit. Edges processed: {i}')
             self.next_dist = d
 
         self.last_processed_edge = i
@@ -240,7 +317,8 @@ class HierarchicalTopoMap(TopoMap):
             self.goal_density = 1/(np.pi*biggest_edge**2)
 
         if len(self.components_to_scale) == 0:
-            self.components_to_scale = self.get_component_to_scale()
+            self.components_to_scale = self.get_component_to_scale(selection_method=self.selection_method,
+                                                                   layers_down=self.layers_down)
 
         self.get_components()
 
