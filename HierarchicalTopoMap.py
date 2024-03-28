@@ -10,6 +10,11 @@ from TopoTree import TopoTree
 class HierarchicalTopoMap(TopoMap):
     def __init__(self, points:np.ndarray,
                  metric='euclidean',
+                 index_path = '',
+                 drop_zeros = False, 
+                 approach = 'mlpack', 
+                 load_mst = False, 
+                 mst_path = '',
                  min_points_component=2,
                  max_edge_length=-1,
                  components_to_scale=[],
@@ -103,6 +108,12 @@ class HierarchicalTopoMap(TopoMap):
         self.n = len(points)
         self.metric = metric
 
+        self.approach = approach
+        self.load_mst  = load_mst
+        self.mst_path = mst_path
+        self.drop_zeros = drop_zeros
+        self.index_path = index_path
+
         self.min_points_component = min_points_component
         self.max_edge_length = max_edge_length
         self.components_to_scale = components_to_scale
@@ -117,6 +128,7 @@ class HierarchicalTopoMap(TopoMap):
         self.max_persistence_selection = max_persistence_selection
         self.max_size_selection = max_size_selection
 
+        self.index = None
         self.mst = None
         self.sorted_edges = None
 
@@ -432,11 +444,14 @@ class HierarchicalTopoMap(TopoMap):
         return self.components_info
 
     def run(self):
+        if self.index is None:
+            self.index = self._compute_index(self.index_path)
+
         if self.mst is None:
-            self.mst = self.get_mst()
+            self.mst = self._compute_mst()
 
         if self.sorted_edges is None:
-            self.sorted_edges = self.get_sorted_edges()
+            self.sorted_edges = self._compute_ordered_edges()
 
         if self.goal_density==-1:
             biggest_edge = self.sorted_edges[-1][2]
