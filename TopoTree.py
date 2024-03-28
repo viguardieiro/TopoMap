@@ -6,17 +6,29 @@ from TopoMap import TopoMap
 class TopoTree(TopoMap):
     def __init__(self, points:np.ndarray,
                  metric='euclidean',
+                 index_path = '',
+                 drop_zeros = False, 
+                 approach = 'mlpack', 
+                 load_mst = False, 
+                 mst_path = '',
                  min_box_size=0,
                  ) -> None:
         self.points = points
         self.n = len(points)
         self.metric = metric
 
+        self.approach = approach
+        self.load_mst  = load_mst
+        self.mst_path = mst_path
+        self.drop_zeros = drop_zeros
+        self.index_path = index_path
+
         if min_box_size == 0:
             self.min_box_size = 0.01*len(points)
         else:
             self.min_box_size = min_box_size
 
+        self.index = None
         self.mst = None
         self.sorted_edges = None
 
@@ -111,11 +123,14 @@ class TopoTree(TopoMap):
         return self.components_info
     
     def run(self):
+        if self.index is None:
+            self.index = self._compute_index(self.index_path)
+
         if self.mst is None:
-            self.mst = self.get_mst()
+            self.mst = self._compute_mst()
 
         if self.sorted_edges is None:
-            self.sorted_edges = self.get_sorted_edges()
+            self.sorted_edges = self._compute_ordered_edges()
 
         return self.get_components()
     
